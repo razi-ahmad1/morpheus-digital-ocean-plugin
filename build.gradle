@@ -1,0 +1,119 @@
+buildscript {
+	repositories {
+		mavenLocal()
+		mavenCentral()
+		maven { url "https://plugins.gradle.org/m2/" }
+		maven { url "https://nexus.bertramlabs.com/content/repositories/snapshots" }
+		maven { url "https://nexus.bertramlabs.com/content/repositories/releases" }
+		maven { url "https://nexus.bertramlabs.com/content/repositories/publicReleases" }
+	}
+	dependencies {
+		classpath "com.github.jengelman.gradle.plugins:shadow:6.0.0"
+		classpath "com.bertramlabs.plugins:asset-pipeline-gradle:$assetPipelineVersion"
+	}
+}
+
+apply plugin: 'java'
+apply plugin: 'groovy'
+apply plugin: 'idea'
+apply plugin: 'com.github.johnrengelman.shadow'
+apply plugin: 'asset-pipeline'
+
+
+group 'com.morpheusdata'
+version '1.2.1'
+ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
+
+sourceCompatibility = '1.11'
+targetCompatibility = '1.11'
+
+repositories {
+	mavenLocal()
+	jcenter()
+	mavenCentral()
+	maven { url "https://nexus.bertramlabs.com/content/repositories/snapshots" }
+	maven { url "https://nexus.bertramlabs.com/content/repositories/releases" }
+	maven { url "https://nexus.bertramlabs.com/content/repositories/publicReleases" }
+}
+
+configurations {
+	provided
+}
+
+dependencies {
+	provided "com.morpheusdata:morpheus-plugin-api:$morphPluginApiVersion"
+	provided "org.codehaus.groovy:groovy-all:$groovyVersion"
+	implementation "org.slf4j:slf4j-api:$slf4jVersion"
+	implementation "org.slf4j:slf4j-parent:$slf4jVersion"
+	implementation 'org.apache.httpcomponents:httpclient:4.5.3'
+	implementation 'org.apache.httpcomponents:httpcore:4.4.5'
+
+	// Include morpheus-core and it's dependencies
+	testImplementation "com.morpheusdata:morpheus-plugin-api:$morphPluginApiVersion"
+	testImplementation 'io.reactivex.rxjava2:rxjava:2.2.0'
+	testImplementation "org.slf4j:slf4j-nop:$slf4jVersion"
+	testImplementation "org.slf4j:slf4j-parent:$slf4jVersion"
+
+	testImplementation "org.codehaus.groovy:groovy-all:$groovyVersion"
+	testImplementation 'net.bytebuddy:byte-buddy:1.9.3'
+	testImplementation 'org.objenesis:objenesis:2.6'
+	testImplementation "org.spockframework:spock-core:$spockVersion"
+	testImplementation 'cglib:cglib-nodep:3.2.12'
+}
+
+sourceSets {
+	main {
+		compileClasspath += configurations.provided
+	}
+}
+
+jar {
+	manifest {
+		attributes(
+			'Plugin-Class': 'com.morpheusdata.digitalocean.DigitalOceanPlugin',
+			'Plugin-Version': archiveVersion,
+			'Morpheus-Name': 'DigitalOcean',
+			'Morpheus-Organization': 'morpheus',
+			'Morpheus-Code': 'digital-ocean-plugin',
+			'Morpheus-Description': 'Plugin for DigitalOcean',
+			'Morpheus-Logo': 'assets/digitalocean.svg',
+			'Morpheus-Logo-Dark': 'assets/digitalocean.svg',
+			'Morpheus-Color': '#ffffff',
+			'Morpheus-Labels': 'Plugin, cloud',
+			'Morpheus-Repo': 'https://github.com/gomorpheus/morpheus-digital-ocean-plugin',
+			'Morpheus-Min-Appliance-Version': "6.0"
+		)
+	}
+}
+
+task(console, dependsOn: 'classes', type: JavaExec) {
+	main = 'groovy.ui.Console'
+	classpath = sourceSets.main.runtimeClasspath
+}
+
+test {
+	testLogging {
+		exceptionFormat = 'full'
+		showStandardStreams = true
+	}
+}
+
+shadowJar {
+	// archiveFileName = "${baseName}-${version}.mpl"
+}
+
+tasks.assemble.dependsOn tasks.shadowJar
+
+tasks.register('moveToPlugin') {
+	doLast {
+		ant.move file: "${buildDir}/libs/${project.name}-${version}-all.jar",
+			todir: "../morpheus-plugins"
+	}
+}
+
+// Runs assemble and copyToMorpheus
+tasks.register('publishToMorpheus') {
+	dependsOn tasks.shadowJar
+	dependsOn 'moveToPlugin'
+	tasks.findByName('moveToPlugin').mustRunAfter 'shadowJar'
+}
