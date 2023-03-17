@@ -30,5 +30,4 @@ class DigitalOceanBackupProvider extends MorpheusBackupProvider {
 		addScopedProvider(digitalOceanSnapshotProvider, "do-provider", null)
 	}
 
-
 }

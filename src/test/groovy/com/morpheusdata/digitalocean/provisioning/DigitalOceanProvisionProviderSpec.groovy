@@ -73,7 +73,7 @@ class DigitalOceanProvisionProviderSpec extends Specification {
 		def resp = provider.startWorkload(workload)
 
 		then:
-		1 * apiService.performDropletAction('drop1111', ['type': 'power_on'], 'abc123') >> new ServiceResponse(success: true, data: actionSuccessJson('power_on').action)
+		1 * apiService.performDropletAction('abc123', 'drop1111', ['type': 'power_on']) >> new ServiceResponse(success: true, data: actionSuccessJson('power_on').action)
 		resp.success == true
 		resp.data.id == 1092647540
 	}
@@ -298,7 +298,7 @@ class DigitalOceanProvisionProviderSpec extends Specification {
 
 		then:
 		resp.success
-		1 * apiService.performDropletAction('drop1111', ['type': 'resize', disk: true, size: 'plan_123'], 'abc123') >> new ServiceResponse(success: true, data: actionSuccessJson('resize').action)
+		1 * apiService.performDropletAction('abc123', 'drop1111', ['type': 'resize', disk: true, size: 'plan_123']) >> new ServiceResponse(success: true, data: actionSuccessJson('resize').action)
 	}
 
 	def actionSuccessJson(String type) {

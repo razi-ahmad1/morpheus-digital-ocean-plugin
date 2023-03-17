@@ -13,41 +13,92 @@ import org.apache.http.entity.StringEntity
 import org.apache.http.impl.client.CloseableHttpClient
 import org.apache.http.impl.client.HttpClients
 import org.apache.http.util.EntityUtils
+import com.morpheusdata.core.util.HttpApiClient
+import com.morpheusdata.core.util.HttpApiClient.RequestOptions
 
 @Slf4j
 class DigitalOceanApiService {
 	protected static final String DIGITAL_OCEAN_ENDPOINT = 'https://api.digitalocean.com'
 
+	HttpApiClient apiClient
+
+	DigitalOceanApiService() {
+		this.apiClient = new HttpApiClient()
+	}
+
 	ServiceResponse getDroplet(String apiKey, String dropletId) {
 		ServiceResponse rtn = ServiceResponse.prepare()
-		HttpGet httpGet = new HttpGet("${DIGITAL_OCEAN_ENDPOINT}/v2/droplets/${dropletId}")
-		def respMap = makeApiCall(httpGet, apiKey)
-		if (respMap.resp.statusLine.statusCode == 200) {
+		String apiPath = "/v2/droplets/${dropletId}"
+		ServiceResponse response = internalGetApiRequest(apiKey, apiPath)
+		log.info("response: ${response}")
+		if (response.success) {
 			rtn.success = true
-			rtn.data = respMap.json?.droplet
-			rtn.results = respMap.json
+			rtn.data = response.data?.droplet
+			rtn.results = response.data
 		} else {
 			rtn.success = false
-			rtn.errorCode = respMap.resp.statusLine.statusCode
-			rtn.results = respMap.json
+			rtn.errorCode = response.errorCode
+			rtn.results = response.data
 		}
 
 		return rtn
 	}
 
-	ServiceResponse performDropletAction(String dropletId, Map body, String apiKey) {
-		HttpPost http = new HttpPost("${DIGITAL_OCEAN_ENDPOINT}/v2/droplets/${dropletId}/actions")
-		http.entity = new StringEntity(JsonOutput.toJson(body))
-		Map respMap = makeApiCall(http, apiKey)
+	ServiceResponse createDroplet(String apiKey, Map dropletConfig) {
+		ServiceResponse rtn = ServiceResponse.prepare()
+		String apiPath = "/v2/droplets"
 
-		if (respMap?.resp?.statusLine?.statusCode == 201) {
-			return checkActionComplete(respMap.json.action.id, apiKey)
+		ServiceResponse response = internalPostApiRequest(apiKey, apiPath, dropletConfig)
+		if(response.success) {
+			rtn.success = true
+			rtn.results = response.data
+			rtn.data = response.data.droplet
 		} else {
-			return new ServiceResponse(success: false, content: respMap?.json, msg: respMap?.resp?.statusLine?.statusCode, error: respMap?.json)
+			rtn.errorCode = results.errorCode
+			rtn.results = rtn.data
 		}
+
+		return rtn
 	}
 
-	ServiceResponse checkActionComplete(Integer actionId, String apiKey) {
+	ServiceResponse deleteDroplet(String apiKey, String dropletId) {
+		def rtn = ServiceResponse.prepare()
+		String apiPath = "/v2/droplets/${dropletId}"
+		ServiceResponse response = internalDeleteApiRequest(apiKey, apiPath)
+		log.debug("deleteDroplet response: ${response}")
+		if(response.success) {
+			rtn.success = true
+		} else {
+			rtn.success = false
+			rtn.errorCode = response.errorCode
+			rtn.results = response.data
+			log.debug("deleteDroplet error: ${rtn.errorCode}, results: ${rtn.results}")
+		}
+
+		return rtn
+	}
+
+	ServiceResponse performDropletAction(String apiKey, String dropletId, String action, Map config=null) {
+		ServiceResponse rtn = ServiceResponse.prepare()
+		String apiPath = "/v2/droplets/${dropletId}/actions"
+		Map body = [type: action]
+		if(config) {
+			body = body + config
+		}
+		ServiceResponse results = internalPostApiRequest(apiKey, apiPath, body)
+		if (results.success) {
+			rtn = checkActionComplete(apiKey, results.data.action.id)
+		} else {
+			rtn.content = results.content
+			rtn.errorCode = results.erroCode
+			rtn.msg = results.errorCode
+			rtn.error = response.data
+		}
+
+		return rtn
+	}
+
+	ServiceResponse checkActionComplete(String apiKey, Integer actionId) {
 		try {
 			def pending = true
 			def attempts = 0
@@ -74,37 +125,36 @@ class DigitalOceanApiService {
 
 	ServiceResponse getAction(String apiKey, String actionId) {
 		def rtn = ServiceResponse.prepare()
-		HttpGet http = new HttpGet("${DIGITAL_OCEAN_ENDPOINT}/v2/actions/${actionId}")
-
-		Map respMap = makeApiCall(http, apiKey)
-		log.debug("getAction result status: ${respMap.resp?.statusLine?.statusCode}, raw: ${respMap}")
-		if(respMap.resp?.statusLine?.statusCode == 200) {
+		String apiPath = "/v2/actions/${actionId}"
+		ServiceResponse response = internalGetApiRequest(apiKey, apiPath)
+		log.debug("getAction response: ${response}")
+		if(response.success) {
 			rtn.success = true
-			rtn.results = respMap.json
-			rtn.data = respMap.json.action
+			rtn.results = response.data
+			rtn.data = response.data.action
 		} else {
 			rtn.success = false
-			rtn.errorCode = respMap.resp.statusLine.statusCode
-			rtn.results = respMap.json
+			rtn.errorCode = response.errorCode
+			rtn.results = response.data
 		}
 
 		return rtn
 	}
 
 	ServiceResponse listDropletSnapshots(String apiKey, String dropletId) {
-		def rtn = ServiceResponse.prepare()
-		HttpGet http = new HttpGet("${DIGITAL_OCEAN_ENDPOINT}/v2/droplets/${dropletId}/snapshots")
+		ServiceResponse rtn = ServiceResponse.prepare()
+		String apiPath = "/v2/droplets/${dropletId}/snapshots"
 
-		Map respMap = makeApiCall(http, apiKey)
-		log.debug("listDropletSnapshots result status: ${respMap.resp?.statusLine?.statusCode}, raw: ${respMap}")
-		if(respMap.resp.statusLine.statusCode == 200) {
+		ServiceResponse response = internalGetApiRequest(apiKey, apiPath)
+		log.debug("listDropletSnapshots response: ${response}")
+		if(response.success) {
 			rtn.success = true
-			rtn.results = respMap.json
-			rtn.data = respMap.json.snapshots
+			rtn.results = response.data
+			rtn.data = response.data.snapshots
 		} else {
 			rtn.success = false
-			rtn.errorCode = respMap.resp.statusLine.statusCode
-			rtn.results = respMap.json
+			rtn.errorCode = response.errorCode
+			rtn.results = response.data
 		}
 
 		return rtn
@@ -112,24 +162,21 @@ class DigitalOceanApiService {
 
 	ServiceResponse createSnapshot(String apiKey, String dropletId, String snapshotName) {
 		def rtn = ServiceResponse.prepare()
-		HttpPost http = new HttpPost("${DIGITAL_OCEAN_ENDPOINT}/v2/droplets/${dropletId}/actions")
-
-		def body = [
+		String apiPath = "/v2/droplets/${dropletId}/actions"
+		Map body = [
 			'type':'snapshot',
 			'name': snapshotName
 		]
-		http.entity = new StringEntity(JsonOutput.toJson(body))
-
-		Map respMap = makeApiCall(http, apiKey)
-		log.debug("createSnapshot result status: ${respMap.resp.statusLine.statusCode}, raw: ${respMap}")
-		if (respMap.resp.statusLine.statusCode == 201) {
+		ServiceResponse response = internalPostApiRequest(apiKey, apiPath, body)
+		log.debug("createSnapshot response: ${response}")
+		if (response.success) {
 			rtn.success = true
-			rtn.data = respMap.json.action
-			rtn.results = respMap.json
+			rtn.data = response.data.action
+			rtn.results = response.data
 		} else {
 			rtn.success = false
-			rtn.errorCode = respMap.resp.statusLine.statusCode
-			rtn.results = respMap.json
+			rtn.errorCode = response.errorCode
+			rtn.results = response.data
 		}
 
 		return rtn
@@ -137,19 +184,57 @@ class DigitalOceanApiService {
 
 	ServiceResponse deleteSnapshot(String apiKey, String snapshotId){
 		def rtn = ServiceResponse.prepare()
-		HttpDelete http = new HttpDelete("${DIGITAL_OCEAN_ENDPOINT}/v2/snapshots/${snapshotId}")
-
-		Map respMap = makeApiCall(http, apiKey)
-		log.debug("deleteSnapshot result status: ${respMap.resp.statusLine.statusCode}, raw: ${respMap}")
-		if(respMap.resp.statusLine.statusCode == 204) {
+		String apiPath = "/v2/snapshots/${snapshotId}"
+		ServiceResponse response = internalDeleteApiRequest(apiKey, apiPath)
+		log.debug("deleteSnapshot response: ${response}")
+		if(response.success) {
 			rtn.success = true
 		} else {
 			rtn.success = false
-			rtn.errorCode = respMap.resp.statusLine.statusCode
-			rtn.results = respMap.json
-			log.debug("rtn on failure error: ${rtn.errorCode}, resutls: ${rtn.results}")
+			rtn.errorCode = response.errorCode
+			rtn.results = response.data
+			log.debug("deleteSnapshot error: ${rtn.errorCode}, results: ${rtn.results}")
 		}
 
+		return rtn
+	}
+
+	private ServiceResponse internalGetApiRequest(String apiKey, String path, Map queryParams=null, Map headers=null) {
+		internalApiRequest(apiKey, path, 'GET', null, queryParams, headers)
+	}
+
+	private ServiceResponse internalPostApiRequest(String apiKey, String path, Map body=null, Map queryParams=null, Map headers=null) {
+		internalApiRequest(apiKey, path, 'POST', body, queryParams, headers)
+	}
+
+	private ServiceResponse internalPatchApiRequest(String apiKey, String path, Map body=null, Map queryParams=null, Map headers=null) {
+		internalApiRequest(apiKey, path, 'PATCH', body, queryParams, headers)
+	}
+
+	private ServiceResponse internalDeleteApiRequest(String apiKey, String path, Map queryParams=null, Map headers=null) {
+		internalApiRequest(apiKey, path, 'DELETE', null, queryParams, headers)
+	}
+
+	private ServiceResponse internalApiRequest(String apiKey, String path, String requestMethod='GET', Map body=null, Map queryParams=null, Map addHeaders=null) {
+		def rtn = ServiceResponse.prepare()
+		try {
+			RequestOptions requestOptions = new RequestOptions(apiToken: apiKey, contentType: 'application/json')
+			if(body) {
+				requestOptions.body = body
+			}
+			if(queryParams) {
+				requestOptions.queryParams = queryParams
+			}
+			requestOptions.headers = ['Accept':'application/json', 'ContentType':'application/json']
+			if(addHeaders) {
+				addHeaders.each {
+					requestOptions.headers[it.key] = it.value
+				}
+			}
+			rtn = apiClient.callJsonApi(DIGITAL_OCEAN_ENDPOINT, path, requestOptions, requestMethod)
+		} catch(e) {
+			log.error("error during api request {}: {}", path, e, e)
+		}
 		return rtn
 	}
 

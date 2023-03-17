@@ -240,8 +240,7 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 		}
 
 		// Now.. ready to create it in DO
-		HttpPost http = new HttpPost("${DIGITAL_OCEAN_ENDPOINT}/v2/droplets")
-		def body = [
+		def dropletConfig = [
 			'name'              : workload.server.getExternalHostname(),
 			'region'            : workload.server.cloud.configMap.datacenter,
 			'size'              : workload.plan.externalId,
@@ -251,17 +250,14 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 			'user_data'         : userData,
 			'private_networking': workload.privateNetworking
 		]
-		body.keys = morpheus.cloud.findOrGenerateKeyPair(workload.account).blockingGet().id
-		log.debug "post body: $body"
-		http.entity = new StringEntity(JsonOutput.toJson(body))
+		dropletConfig.keys = morpheus.cloud.findOrGenerateKeyPair(workload.account).blockingGet().id
 
-		def respMap = apiService.makeApiCall(http, apiKey)
-
-		if (respMap.resp.statusLine.statusCode == 202) {
-			log.debug "Droplet Created ${respMap.json}"
+		def response = apiService.createDroplet(apiKey, dropletConfig)
+		if (response.success) {
+			log.debug "Droplet Created ${response.results}"
 
 			// Need to store the link between the Morpheus ComputeServer reference and the Digital Ocean object
-			def droplet = respMap.json.droplet
+			def droplet = response.data
 			def externalId = droplet.id
 			server.externalId = externalId
 			server.osDevice = '/dev/vda'
@@ -271,8 +267,8 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 			return new ServiceResponse<WorkloadResponse>(success: true, data: new WorkloadResponse(externalId: externalId, installAgent: callbackOpts.installAgent, createUsers: callbackOpts.createUsers))
 		} else {
-			log.debug "Failed to create droplet: $respMap.resp"
-			return new ServiceResponse(success: false, msg: respMap?.resp?.statusLine?.statusCode, content: respMap.resp, error: respMap.resp)
+			log.debug "Failed to create droplet: $response.results"
+			return new ServiceResponse(success: false, msg: response.errorCode, content: response.content, error: response.data)
 		}
 	}
 
@@ -322,8 +318,7 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 		def found = false
 		log.info("findOrCreateServer:${server.externalId}")
 
-		HttpPost http = new HttpPost("${DIGITAL_OCEAN_ENDPOINT}/v2/droplets")
-		def body = [
+		def dropletConfig = [
 				'name'              : cleanInstanceName(server.name),
 				'region'            : server.cloud.configMap.datacenter,
 				'size'              : server.plan.externalId,
@@ -333,9 +328,8 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 				'user_data'         : hostRequest.cloudConfigUser,
 				'private_networking': false
 		]
-		log.debug "post body: $body"
-		http.entity = new StringEntity(JsonOutput.toJson(body))
-		def respMap = apiService.makeApiCall(http, apiKey)
+		log.debug "post body: $dropletConfig"
+		def response = apiService.createDroplet(apiKey, dropletConfig)
 
 		Map callbackOpts = [:]
 		if(server.sourceImage?.isCloudInit) {
@@ -350,11 +344,11 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 			callbackOpts.createUsers = hostRequest.usersConfiguration
 		}
 
-		if (respMap.resp.statusLine.statusCode == 202) {
-			log.debug "Droplet Created ${respMap.json}"
+		if (response.success) {
+			log.debug "Droplet Created ${response.json}"
 
 			// Need to store the link between the Morpheus ComputeServer reference and the Digital Ocean object
-			def droplet = respMap.json.droplet
+			def droplet = response.data
 			def externalId = droplet.id
 			server.externalId = externalId
 			server.osDevice = '/dev/vda'
@@ -364,8 +358,8 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 			return new ServiceResponse<HostResponse>(success: true, data: new HostResponse(externalId: externalId, installAgent: callbackOpts.installAgent, createUsers: callbackOpts.createUsers))
 		} else {
-			log.debug "Failed to create droplet: $respMap.resp"
-			return new ServiceResponse(success: false, msg: respMap?.resp?.statusLine?.statusCode, content: respMap.resp, error: respMap.resp)
+			log.debug("Failed to create droplet: $response.results")
+			return new ServiceResponse(success: false, msg: response?.errorCode, content: response.content, error: response.data)
 		}
 	}
 
@@ -422,12 +416,11 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 		try {
 			String apiKey = plugin.getAuthConfig(server.cloud).doApiKey
 			String dropletId = server.externalId
-			Map body = [
-					'type': 'resize',
+			Map actionConfig = [
 					'disk': true,
 					'size': resizeRequest.plan.externalId
 			]
-			rtn = apiService.performDropletAction(dropletId, body, apiKey)
+			rtn = apiService.performDropletAction(apiKey, dropletId, 'resize', actionConfig)
 			if(rtn.success) {
 				StorageVolume existingVolume = server.volumes?.getAt(0)
 				if (existingVolume) {
@@ -453,13 +446,9 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 			return new ServiceResponse(success: false, msg: 'No Droplet ID provided')
 		}
 
-		HttpPost http = new HttpPost("${DIGITAL_OCEAN_ENDPOINT}/v2/droplets/${dropletId}/actions")
-		def body = ['type': 'shutdown']
-		http.entity = new StringEntity(JsonOutput.toJson(body))
-		Map respMap = apiService.makeApiCall(http, apiKey)
-
-		if (respMap?.resp?.statusLine?.statusCode == 201) {
-			return apiService.checkActionComplete(respMap.json.action.id, apiKey)
+		ServiceResponse response = apiService.performDropletAction(apiKey, dropletId, 'shutdown')
+		if (response.success) {
+			return apiService.checkActionComplete(apiKey, response.data.id)
 		} else {
 			powerOffServer(apiKey, dropletId)
 		}
@@ -474,36 +463,34 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 			log.debug "no Droplet ID provided"
 			return new ServiceResponse(success: false, msg: 'No Droplet ID provided')
 		}
-		def body = ['type': 'power_on']
-		apiService.performDropletAction(dropletId, body, apiKey)
+		return apiService.performDropletAction(apiKey, dropletId, 'power_on')
 	}
 
 	@Override
 	ServiceResponse restartWorkload(Workload workload) {
+		ServiceResponse rtn = ServiceResponse.prepare()
 		log.debug 'restartWorkload'
 		ServiceResponse stopResult = stopWorkload(workload)
 		if (stopResult.success) {
-			return startWorkload(workload)
+			rtn = startWorkload(workload)
+		} else {
+			rtn = stopResult
 		}
-		stopResult
+
+		return rtn
 	}
 
 	@Override
 	ServiceResponse removeWorkload(Workload workload, Map opts) {
 		String dropletId = workload.server.externalId
-		String apiKey = plugin.getAuthConfig(workload.server.cloud).doApiKey
 		log.debug "removeWorkload for server: ${dropletId}"
 		if (!dropletId) {
 			log.debug "no Droplet ID provided"
 			return new ServiceResponse(success: false, msg: 'No Droplet ID provided')
 		}
-		HttpDelete httpDelete = new HttpDelete("${DIGITAL_OCEAN_ENDPOINT}/v2/droplets/${dropletId}")
-		Map respMap = apiService.makeApiCall(httpDelete, apiKey)
-		if (respMap?.resp?.statusLine?.statusCode == 204) {
-			return new ServiceResponse(success: true)
-		} else {
-			return new ServiceResponse(success: false, content: respMap?.json, msg: respMap?.resp?.statusLine?.statusCode, error: respMap?.json)
-		}
+
+		String apiKey = plugin.getAuthConfig(workload.server.cloud).doApiKey
+		return apiService.deleteDroplet(apiKey, dropletId)
 	}
 
 	@Override
@@ -549,8 +536,7 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 	ServiceResponse<WorkloadResponse> powerOffServer(String apiKey, String dropletId) {
 		log.debug "power off server"
-		def body = ['type': 'power_off']
-		apiService.performDropletAction(dropletId, body, apiKey)
+		return apiService.performDropletAction(apiKey, dropletId, 'power_off')
 	}
 
 	protected WorkloadResponse dropletToWorkloadResponse(droplet) {

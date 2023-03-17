@@ -342,7 +342,7 @@ class DigitalOceanCloudProvider implements CloudProvider {
 			return new ServiceResponse(success: false, msg: 'No Droplet ID provided')
 		}
 		def body = ['type': 'power_on']
-		apiService.performDropletAction(dropletId, body, apiKey)
+		apiService.performDropletAction(apiKey, dropletId, body)
 	}
 
 	@Override
@@ -355,7 +355,7 @@ class DigitalOceanCloudProvider implements CloudProvider {
 			return new ServiceResponse(success: false, msg: 'No Droplet ID provided')
 		}
 		def body = ['type': 'shutdown']
-		apiService.performDropletAction(dropletId, body, apiKey)
+		apiService.performDropletAction(apiKey, dropletId, body)
 	}
 
 	@Override
