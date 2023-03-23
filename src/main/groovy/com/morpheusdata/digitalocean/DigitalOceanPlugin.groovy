@@ -30,7 +30,6 @@ class DigitalOceanPlugin extends Plugin {
 
 		DigitalOceanBackupProvider backupProvider = new DigitalOceanBackupProvider(this, morpheus)
 		pluginProviders.put(backupProvider.code, backupProvider)
-
 	}
 
 	@Override
@@ -56,6 +55,8 @@ class DigitalOceanPlugin extends Plugin {
 			cloud.accountCredentialLoaded = true
 			cloud.accountCredentialData = accountCredential?.data
 		}
+
+		log.debug("AccountCredential loaded: $cloud.accountCredentialLoaded, Data: $cloud.accountCredentialData")
 
 		def doUsername
 		if(cloud.accountCredentialData && cloud.accountCredentialData.containsKey('username')) {

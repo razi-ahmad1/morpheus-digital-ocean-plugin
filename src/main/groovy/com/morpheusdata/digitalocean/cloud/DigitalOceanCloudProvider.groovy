@@ -247,7 +247,7 @@ class DigitalOceanCloudProvider implements CloudProvider {
 
 	@Override
 	ServiceResponse validate(Cloud zoneInfo, ValidateCloudRequest validateCloudRequest) {
-		log.debug "validating Cloud: ${zoneInfo.code}, ${validateCloudRequest.credentialType} ${validateCloudRequest.credentialUsername} ${validateCloudRequest.credentialPassword}"
+		log.debug("validating Cloud: ${zoneInfo.code}, ${validateCloudRequest.credentialType} ${validateCloudRequest.credentialUsername} ${validateCloudRequest.credentialPassword}")
 		if (!zoneInfo.configMap.datacenter) {
 			return new ServiceResponse(success: false, msg: 'Choose a datacenter')
 		}
@@ -274,9 +274,8 @@ class DigitalOceanCloudProvider implements CloudProvider {
 			return new ServiceResponse(success: false, msg: 'Enter your api key')
 		}
 
-		HttpGet http = new HttpGet("${DigitalOceanApiService.DIGITAL_OCEAN_ENDPOINT}/v2/regions")
-		def respMap = apiService.makeApiCall(http, apiKey)
-		if(respMap.resp.statusLine.statusCode != 200) {
+		ServiceResponse response = apiService.listRegions(apiKey)
+		if(response.success == false) {
 			return new ServiceResponse(success: false, msg: 'Invalid credentials')
 		}
 
@@ -286,26 +285,28 @@ class DigitalOceanCloudProvider implements CloudProvider {
 	@Override
 	ServiceResponse initializeCloud(Cloud cloud) {
 		ServiceResponse serviceResponse
-		log.debug "Initializing Cloud: ${cloud.code}"
-		log.debug "config: ${cloud.configMap}"
+		log.debug("Initializing Cloud: ${cloud.code}")
+		log.debug("config: ${cloud.configMap}")
 		String apiKey = plugin.getAuthConfig(cloud).doApiKey
-		HttpGet accountGet = new HttpGet("${DigitalOceanApiService.DIGITAL_OCEAN_ENDPOINT}/v2/account")
 
 		// check account
-		def respMap = apiService.makeApiCall(accountGet, apiKey)
-		if (respMap.resp.statusLine.statusCode == 200 && respMap.json.account.status == 'active') {
-			serviceResponse = new ServiceResponse(success: true, content: respMap.json)
+		ServiceResponse initResponse = apiService.getAccount(apiKey)
+		if (initResponse.success && initResponse.data.status == 'active') {
+			serviceResponse = new ServiceResponse(success: true, content: initResponse.content)
 
-			(new DatacentersSync(plugin, cloud, apiService)).execute()
-			(new SizesSync(plugin, cloud, apiService)).execute()
-			(new ImagesSync(plugin, cloud, apiService)).execute()
+			refreshDaily(cloud)
+			refresh(cloud)
 
 			KeyPair keyPair = morpheusContext.cloud.findOrGenerateKeyPair(cloud.account).blockingGet()
 			if (keyPair) {
 				KeyPair updatedKeyPair = findOrUploadKeypair(apiKey, keyPair.publicKey, keyPair.name)
-				morpheusContext.cloud.updateKeyPair(updatedKeyPair, cloud)
+				if(updatedKeyPair) {
+					morpheusContext.cloud.updateKeyPair(updatedKeyPair, cloud)
+				} else {
+					log.warn("Unable to create SSH Key pair")
+				}
 			} else {
-				log.debug "no morpheus keys found"
+				log.debug("no morpheus keys found")
 			}
 		} else {
 			serviceResponse = new ServiceResponse(success: false, msg: respMap.resp?.statusLine?.statusCode, content: respMap.json)
@@ -316,15 +317,17 @@ class DigitalOceanCloudProvider implements CloudProvider {
 
 	@Override
 	ServiceResponse refresh(Cloud cloud) {
-		log.debug "cloud refresh has run for ${cloud.code}"
-		(new SizesSync(plugin, cloud, apiService)).execute()
+		log.debug("Short refresh cloud ${cloud.code}")
 		(new ImagesSync(plugin, cloud, apiService)).execute()
+		log.debug("Completed short refresh for cloud $cloud.code")
 		return ServiceResponse.success()
 	}
 
 	@Override
 	void refreshDaily(Cloud cloudInfo) {
-		log.debug "daily refresh run for ${cloudInfo.code}"
+		log.debug("daily refresh cloud ${cloudInfo.code}")
+		(new SizesSync(plugin, cloudInfo, apiService)).execute()
+		log.debug("Completed daily refresh for cloud ${cloudInfo.code}")
 	}
 
 	@Override
@@ -336,9 +339,9 @@ class DigitalOceanCloudProvider implements CloudProvider {
 	ServiceResponse startServer(ComputeServer computeServer) {
 		String dropletId = computeServer.externalId
 		String apiKey = plugin.getAuthConfig(computeServer.cloud).doApiKey
-		log.debug "startServer: ${dropletId}"
+		log.debug("startServer: ${dropletId}")
 		if (!dropletId) {
-			log.debug "no Droplet ID provided"
+			log.debug("no Droplet ID provided")
 			return new ServiceResponse(success: false, msg: 'No Droplet ID provided')
 		}
 		def body = ['type': 'power_on']
@@ -349,9 +352,9 @@ class DigitalOceanCloudProvider implements CloudProvider {
 	ServiceResponse stopServer(ComputeServer computeServer) {
 		String dropletId = computeServer.externalId
 		String apiKey = plugin.getAuthConfig(computeServer.cloud).doApiKey
-		log.debug "stopServer: ${dropletId}"
+		log.debug("stopServer: ${dropletId}")
 		if (!dropletId) {
-			log.debug "no Droplet ID provided"
+			log.debug("no Droplet ID provided")
 			return new ServiceResponse(success: false, msg: 'No Droplet ID provided')
 		}
 		def body = ['type': 'shutdown']
@@ -362,39 +365,43 @@ class DigitalOceanCloudProvider implements CloudProvider {
 	ServiceResponse deleteServer(ComputeServer computeServer) {
 		String dropletId = computeServer.externalId
 		String apiKey = plugin.getAuthConfig(computeServer.cloud).doApiKey
-		log.debug "deleteServer for server: ${dropletId}"
+		log.debug("deleteServer: ${dropletId}")
 		if (!dropletId) {
-			log.debug "no Droplet ID provided"
+			log.debug("no Droplet ID provided")
 			return new ServiceResponse(success: false, msg: 'No Droplet ID provided')
 		}
-		HttpDelete httpDelete = new HttpDelete("${DigitalOceanApiService.DIGITAL_OCEAN_ENDPOINT}/v2/droplets/${dropletId}")
-		Map respMap = apiService.makeApiCall(httpDelete, apiKey)
-		if (respMap?.resp?.statusLine?.statusCode == 204) {
+		ServiceResponse response = apiService.deleteDroplet(apiKey, dropletId)
+		if (response.success) {
 			return new ServiceResponse(success: true)
 		} else {
-			return new ServiceResponse(success: false, content: respMap?.json, msg: respMap?.resp?.statusLine?.statusCode, error: respMap?.json)
+			return new ServiceResponse(success: false, results: response.results, data: response.data, msg: response.errorCode, error: response.results)
 		}
 	}
 
 	KeyPair findOrUploadKeypair(String apiKey, String publicKey, String keyName) {
+		KeyPair rtn = null
+		Map match = null
 		keyName = keyName ?: 'morpheus_do_plugin_key'
-		log.debug "find or update keypair for key $keyName"
-		List keyList = apiService.makePaginatedApiCall(apiKey, '/v2/account/keys', 'ssh_keys', [:])
-		log.debug "keylist: $keyList"
-		def match = keyList.find { publicKey.startsWith(it.public_key) }
-		log.debug("match: ${match} - list: ${keyList}")
-		if (!match) {
-			log.debug 'key not found in DO'
-			HttpPost httpPost = new HttpPost("${DigitalOceanApiService.DIGITAL_OCEAN_ENDPOINT}/v2/account/keys")
-			httpPost.entity = new StringEntity(JsonOutput.toJson([public_key: publicKey, name: keyName]))
-			def respMap = apiService.makeApiCall(httpPost, apiKey)
-			if (respMap.resp.statusLine.statusCode == 200) {
-				match = new KeyPair(name: respMap.json.name, externalId: respMap.json.id, publicKey: respMap.json.public_key, publicFingerprint: respMap.json.fingerprint)
-			} else {
-				log.debug 'failed to add DO ssh key'
+		log.debug("find or update keypair for key $keyName")
+		ServiceResponse keysResponse = apiService.listAccountKeys(apiKey)
+		if(keysResponse.success) {
+			match = keysResponse.data.find { publicKey.startsWith(it['public_key']) }
+			log.debug("match: ${match} - list: ${keysResponse.data}")
+			if (!match) {
+				log.debug('key not found in DO')
+				ServiceResponse response = apiService.createAccountKey(apiKey, keyName, publicKey)
+				if (response.success) {
+					match = response.data
+				} else {
+					log.debug('failed to add DO ssh key')
+				}
 			}
-			match = respMap.json
 		}
-		new KeyPair(name: match.name, externalId: match.id, publicKey: match.public_key, publicFingerprint: match.fingerprint)
+
+		if(match) {
+			rtn = new KeyPair(name: match.name, externalId: match.id, publicKey: match.public_key, publicFingerprint: match.fingerprint)
+		}
+
+		return rtn
 	}
 }

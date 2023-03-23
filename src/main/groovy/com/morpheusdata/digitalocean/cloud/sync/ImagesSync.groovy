@@ -1,5 +1,6 @@
 package com.morpheusdata.digitalocean.cloud.sync
 
+import com.morpheusdata.response.ServiceResponse
 import com.morpheusdata.digitalocean.DigitalOceanPlugin
 import com.morpheusdata.digitalocean.DigitalOceanApiService
 import com.morpheusdata.core.MorpheusContext
@@ -27,7 +28,7 @@ class ImagesSync {
 	}
 
 	def execute() {
-		log.debug "execute: ${cloud}"
+		log.debug("ImagesSync execute: ${cloud}")
 		try {
 			List<VirtualImage> apiImages = listImages(false)
 			apiImages += listImages(true)
@@ -37,10 +38,10 @@ class ImagesSync {
 			syncTask.addMatchFunction { VirtualImageIdentityProjection projection, VirtualImage apiImage ->
 				projection.externalId == apiImage.externalId
 			}.onDelete { List<VirtualImageIdentityProjection> deleteList ->
-				log.debug "deleteList: ${deleteList?.size()}"
+				log.debug("deleteList: ${deleteList?.size()}")
 				morpheusContext.virtualImage.remove(deleteList).blockingGet()
 			}.onAdd { createList ->
-				log.info("Creating ${createList?.size()} new images")
+				log.debug("Creating ${createList?.size()} new images")
 				while (createList.size() > 0) {
 					List chunkedList = createList.take(50)
 					createList = createList.drop(50)
@@ -58,29 +59,30 @@ class ImagesSync {
 				updateMatchedImages(updateList)
 			}.start()
 		} catch(e) {
-			log.error "Error in execute : ${e}", e
+			log.error("Error in execute : ${e}", e)
 		}
 	}
 
 	List<VirtualImage> listImages(Boolean userImages) {
-		log.debug "list ${userImages ? 'User' : 'OS'} Images"
+		log.debug("list ${userImages ? 'User' : 'OS'} Images")
 		List<VirtualImage> virtualImages = []
 
-		Map queryParams = [:]
+		String privateImage = null
+		String imageType = null
 		if (userImages) {
-			queryParams.private = 'true'
+			privateImage = 'true'
 		} else {
-			queryParams.type = 'distribution'
+			imageType = 'distribution'
 		}
-
-		String apiKey = plugin.getAuthConfig(cloud).doApiKey
-		List images = apiService.makePaginatedApiCall(apiKey, '/v2/images', 'images', queryParams)
-
 		String imageCodeBase = "doplugin.image.${userImages ? 'user' : 'os'}"
 
-		log.info("images: $images")
-		images.each {
-			Map props = [
+		String apiKey = plugin.getAuthConfig(cloud).doApiKey
+		ServiceResponse response = apiService.listImages(apiKey, privateImage, imageType)
+		if(response) {
+			List images = response.data
+			log.debug("images: $images")
+			images.each {
+				Map props = [
 					name       : "${it.distribution} ${it.name}",
 					externalId : it.id,
 					code       : "${imageCodeBase}.${cloud.code}.${it.id}",
@@ -95,15 +97,16 @@ class ImagesSync {
 					refType    : 'ComputeZone',
 					isCloudInit: true,
 					isPublic   : true
-			]
-			virtualImages << new VirtualImage(props)
+				]
+				virtualImages << new VirtualImage(props)
+			}
 		}
-		log.info("api images: $virtualImages")
-		virtualImages
+		log.debug("api images: $virtualImages")
+		return virtualImages
 	}
 
 	void updateMatchedImages(List<SyncTask.UpdateItem<VirtualImage,Map>> updateItems) {
-		log.debug "updateMatchedImages: ${updateItems?.size()}"
+		log.debug("updateMatchedImages: ${updateItems?.size()}")
 		List<VirtualImage> imagesToUpdate = []
 
 		updateItems.each {it ->
@@ -127,7 +130,7 @@ class ImagesSync {
 			}
 		}
 
-		log.debug "Have ${imagesToUpdate?.size()} to update"
+		log.debug("Have ${imagesToUpdate?.size()} to update")
 		morpheusContext.virtualImage.save(imagesToUpdate, cloud).blockingGet()
 	}
 

@@ -1,5 +1,6 @@
 package com.morpheusdata.digitalocean.backup
 
+import com.morpheusdata.core.util.ComputeUtility
 import com.morpheusdata.digitalocean.DigitalOceanPlugin
 import com.morpheusdata.digitalocean.DigitalOceanApiService
 import com.morpheusdata.core.MorpheusContext
@@ -66,7 +67,7 @@ class DigitalOceanSnapshotProvider extends AbstractMorpheusBackupTypeProvider {
 
 	@Override
 	Boolean getRestoreExistingEnabled() {
-		return false
+		return true
 	}
 
 	@Override
@@ -125,6 +126,7 @@ class DigitalOceanSnapshotProvider extends AbstractMorpheusBackupTypeProvider {
 		def statusMap = [backupResultId: backupResult.id, success: false, backupSizeInMb: 0, providerType:'digitalocean', config: []]
 		def snapshotName = "${computeServer.name}.${computeServer.id}.${System.currentTimeMillis()}".toString()
 
+		log.debug("Is source image cloud init: ${computeServer.sourceImage.isCloudInit}, not windows: ${computeServer.serverOs?.platform != 'windows'}")
 		if(computeServer.sourceImage && computeServer.sourceImage.isCloudInit && computeServer.serverOs?.platform != 'windows') {
 			getPlugin().morpheus.executeCommandOnServer(computeServer, 'sudo rm -f /etc/cloud/cloud.cfg.d/99-manual-cache.cfg; sudo cp /etc/machine-id /tmp/machine-id-old ; sync', false, computeServer.sshUsername, computeServer.sshPassword, null, null, null, null, true, true).blockingGet()
 		}
@@ -179,6 +181,7 @@ class DigitalOceanSnapshotProvider extends AbstractMorpheusBackupTypeProvider {
 								def snapshotResp = getSnapshot(cloud, computeServer, snapshotName)
 								def snapshot = snapshotResp.data
 								log.debug("Snapshot details: ${snapshot}")
+
 								if(snapshotResp.success && snapshot && !rtn.data.backupResult.externalId) {
 									rtn.data.backupResult.externalId = snapshot?.id
 									doUpdate = true
@@ -188,9 +191,13 @@ class DigitalOceanSnapshotProvider extends AbstractMorpheusBackupTypeProvider {
 									rtn.data.backupResult.status = BackupStatusUtility.SUCCEEDED
 									rtn.data.backupResult.startDate = DateUtility.parseDate(snapshot['created_at'])
 									rtn.data.backupResult.endDate = DateUtility.parseDate(action['completed_at'])
-									rtn.data.backupResult.externalId = snapshot?.id
-									Long backupSizeMb = (long) (snapshot['size_gigabytes'] * 1024l)
+									rtn.data.backupResult.setConfigProperty("snapshotId", snapshot.id)
+									Long backupSizeMb = (long) ((snapshot['size_gigabytes'] ?: 0l) * ComputeUtility.ONE_KILOBYTE)
+									Long backupSizeBytes = (long) ((snapshot['size_gigabytes'] ?: 0l) * ComputeUtility.ONE_GIGABYTE)
+
+									log.debug("refreshBackupResult backupSizeMb: $backupSizeMb, snapshotId: $snapshot.id")
 									rtn.data.backupResult.sizeInMb = backupSizeMb
+									rtn.data.backupResult.sizeInBytes = backupSizeBytes
 
 									def startDate = rtn.data.backupResult.startDate
 									def endDate =rtn.data.backupResult.endDate
@@ -199,7 +206,9 @@ class DigitalOceanSnapshotProvider extends AbstractMorpheusBackupTypeProvider {
 										def end = DateUtility.parseDate(endDate)
 										rtn.data.backupResult.durationMillis = end.time - start.time
 									}
+
 									doUpdate = true
+									log.debug("refreshBackupResult doUpdate: $doUpdate")
 								}
 							}
 						} else if (actionResults?.data?.status == "errored") {
@@ -263,9 +272,9 @@ class DigitalOceanSnapshotProvider extends AbstractMorpheusBackupTypeProvider {
 		log.debug("Delete backup result {}", backupResult.id)
 		ServiceResponse rtn = ServiceResponse.prepare()
 		try {
-			def snapshotId = backupResult.externalId ?: backupResult.getConfigProperty("snapshotId")
+			def snapshotId = (backupResult.externalId ?: backupResult.getConfigProperty("snapshotId"))?.toString()
 			def cloudId = backupResult.zoneId ?: backupResult.backup?.zoneId
-			log.info("deleteBackupResult zoneId: ${cloudId}, snapshotId: ${snapshotId}")
+			log.debug("deleteBackupResult zoneId: ${cloudId}, snapshotId: ${snapshotId}")
 			if(snapshotId && cloudId) {
 				Cloud cloud = plugin.morpheus.cloud.getCloudById(cloudId).blockingGet()
 				if(cloud) {
@@ -276,7 +285,7 @@ class DigitalOceanSnapshotProvider extends AbstractMorpheusBackupTypeProvider {
 						log.debug("Delete successful")
 						rtn.success = true
 					}
-					log.info("deleteBackupResult result: ${rtn}")
+					log.debug("deleteBackupResult result: ${rtn}")
 				} else {
 					rtn.success = false
 					rtn.msg = "Associated cloud could not be found."
@@ -299,8 +308,24 @@ class DigitalOceanSnapshotProvider extends AbstractMorpheusBackupTypeProvider {
 	}
 
 	@Override
-	ServiceResponse getBackupRestoreInstanceConfig(BackupResult backupResult, Instance instance, Map restoreConfig, Map opts) {
-		return ServiceResponse.success()
+	ServiceResponse getBackupRestoreInstanceConfig(BackupResult backupResult, Instance instanceModel, Map restoreConfig, Map opts) {
+		def rtn = [success:false, data:[:]]
+		try {
+			def backup = backupResult.backup
+			log.debug("getBackupRestoreInstanceConfig: {}", backupResult)
+			log.debug("restoreConfig: {}", restoreConfig)
+			log.debug("opts: {}", opts)
+			restoreConfig.config = backupResult.getConfigMap() ?: [:]
+			restoreConfig.instanceOpts = restoreConfig.instanceOpts ?: [:]
+			// backupSetId used for configuring restore to new in morpheus services
+			restoreConfig.instanceOpts.provisionOpts = [backupSetId:backupResult.backupSetId]
+
+			rtn.data = restoreConfig
+			rtn.success = true
+		} catch(e) {
+			log.error("getBackupRestoreInstanceConfig error: ${e}", e)
+		}
+		return ServiceResponse.create(rtn)
 	}
 
 	@Override
@@ -323,20 +348,20 @@ class DigitalOceanSnapshotProvider extends AbstractMorpheusBackupTypeProvider {
 			def snapshotId = backupResult.externalId ?: config.snapshotId
 			def dropletId = config.dropletId
 			if(snapshotId && dropletId) {
-				def sourceWorkload = plugin.morpheus.workload.get(opts?.containerId ?: backupResult.containerId).blockingGet()
-				ComputeServer computeServer = sourceWorkload.server
+				def tragetWorkload = plugin.morpheus.workload.get(opts?.containerId ?: backupResult.containerId).blockingGet()
+				ComputeServer computeServer = tragetWorkload.server
 				if (computeServer?.externalId) {
 					dropletId = computeServer.externalId
 				}
 				Cloud cloud = computeServer.cloud
 				def apiKey = plugin.getAuthConfig(cloud).doApiKey
 				def restoreResults = apiService.restoreSnapshot(apiKey, dropletId, snapshotId)
-				log.info("restore results: ${restoreResults}")
+				log.debug("restore results: ${restoreResults}")
 				if(restoreResults.success){
 					rtn.data.backupRestore.status = BackupStatusUtility.IN_PROGRESS
 					rtn.data.backupRestore.externalId = dropletId
-					rtn.data.backupRestore.externalStatusRef = restoreResults.action?.id
-					rtn.data.backupRestore.startDate = DateUtility.parseDate(restoreResults.action["started_at"])
+					rtn.data.backupRestore.externalStatusRef = restoreResults.data?.id
+					rtn.data.backupRestore.startDate = DateUtility.parseDate(restoreResults.data["started_at"])
 					rtn.success = true
 					doUpdates = true
 				} else {

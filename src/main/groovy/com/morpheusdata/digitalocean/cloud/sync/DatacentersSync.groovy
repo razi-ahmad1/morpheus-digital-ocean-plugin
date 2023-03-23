@@ -30,7 +30,7 @@ class DatacentersSync {
 	}
 
 	def execute() {
-		log.debug "execute: ${cloud}"
+		log.debug("DatacentersSync execute: ${cloud}")
 		try {
 			def datacenters = listDatacenters()
 			if(datacenters?.size() > 0) {
@@ -53,22 +53,22 @@ class DatacentersSync {
 				}.start()
 			}
 		} catch(e) {
-			log.error "Error in execute : ${e}", e
+			log.error("Error in execute : ${e}", e)
 		}
 	}
 
-	List<VirtualImage> listDatacenters() {
-		log.debug "listDatacenters"
-		
+	List<ReferenceData> listDatacenters() {
+		log.debug("listDatacenters")
 		List<ReferenceData> datacenters = []
-
 		String apiKey = plugin.getAuthConfig(cloud).doApiKey
-		List regions = apiService.makePaginatedApiCall(apiKey, '/v2/regions', 'regions', [:])
+		def response = apiService.listRegions(apiKey)
+		if(response.success) {
+			List regions = response.data
 
-		log.info("regions: $regions")
-		regions.each { it ->
-			if(it.available == true ) {
-				Map props = [
+			log.debug("regions: $regions")
+			regions.each { it ->
+				if(it.available == true ) {
+					Map props = [
 						code      : "digitalocean.datacenter.${it.slug}",
 						category  : "digitalocean.datacenter",
 						name      : it.name,
@@ -77,11 +77,13 @@ class DatacentersSync {
 						value     : it.slug,
 						flagValue : it.available,
 						config    : [features: it.features, sizes: it.sizes].encodeAsJSON().toString()
-				]
-				datacenters << new ReferenceData(props)
+					]
+					datacenters << new ReferenceData(props)
+				}
 			}
 		}
-		log.info("api regions: $datacenters")
+
+		log.debug("listDatacenters regions: $datacenters")
 		datacenters
 	}
 

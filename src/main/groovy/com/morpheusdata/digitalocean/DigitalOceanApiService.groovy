@@ -23,14 +23,121 @@ class DigitalOceanApiService {
 	HttpApiClient apiClient
 
 	DigitalOceanApiService() {
-		this.apiClient = new HttpApiClient()
+		// API Client, throttled to prevent hitting digital ocean rate limit.
+		this.apiClient = new HttpApiClient(throttleRate:500L)
+	}
+
+	ServiceResponse getAccount(String apiKey) {
+		ServiceResponse rtn = ServiceResponse.prepare()
+		String apiPath = "/v2/account"
+		ServiceResponse response = internalGetApiRequest(apiKey, apiPath)
+		if(response.success) {
+			rtn.success = true
+			rtn.data = response.data.account
+			rtn.results = response.data
+		} else {
+			rtn.errorCode = response.errorCode
+			rtn.results = response.data
+		}
+
+		return rtn
+	}
+
+	ServiceResponse listAccountKeys(String apiKey) {
+		ServiceResponse rtn = ServiceResponse.prepare()
+
+		def apiPath = '/v2/account/keys'
+		ServiceResponse response = internalPaginatedGetApiRequest(apiKey, apiPath, 'ssh_keys')
+		if(response.success) {
+			rtn.success = true
+			rtn.data = response.data.ssh_keys
+			rtn.results = response.data
+		} else {
+			rtn.errorCode = response.errorCode
+			rtn.results = response.data
+		}
+
+		return rtn
+	}
+
+	ServiceResponse createAccountKey(String apiKey, String keyName, String publicKey) {
+		ServiceResponse rtn = ServiceResponse.prepare()
+		String apiPath = "/v2/account/keys"
+
+		def keyConfig = [public_key: publicKey, name: keyName]
+
+		ServiceResponse response = internalPostApiRequest(apiKey, apiPath, keyConfig)
+		if(response.success) {
+			rtn.success = true
+			rtn.results = response.data
+			rtn.data = response.data.ssh_key
+		} else {
+			rtn.errorCode = response.errorCode
+			rtn.results = response.data
+		}
+
+		return rtn
+	}
+
+	ServiceResponse listRegions(String apiKey) {
+		ServiceResponse rtn = ServiceResponse.prepare()
+		String apiPath = "/v2/regions"
+		ServiceResponse response = internalPaginatedGetApiRequest(apiKey, apiPath, "regions")
+		if(response.success) {
+			rtn.success = true
+			rtn.data = response.data.regions
+			rtn.results = response.data
+		} else {
+			rtn.errorCode = response.errorCode
+			rtn.results = response.data
+		}
+
+		return rtn
+	}
+
+	ServiceResponse listImages(String apiKey, String privateImage=null, String imageType=null) {
+		ServiceResponse rtn = ServiceResponse.prepare()
+		String apiPath = "/v2/images"
+		Map queryParams = [:]
+		if(privateImage) {
+			queryParams.private = privateImage
+		}
+		if(imageType) {
+			queryParams.type = imageType
+		}
+		ServiceResponse response = internalPaginatedGetApiRequest(apiKey, apiPath, "images", queryParams)
+		if(response.success) {
+			rtn.success = true
+			rtn.data = response.data.images
+			rtn.results = response.data
+		} else {
+			rtn.errorCode = response.errorCode
+			rtn.results = response.data
+		}
+
+		return rtn
+	}
+
+	ServiceResponse listDropletSizes(String apiKey) {
+		ServiceResponse rtn = ServiceResponse.prepare()
+		String apiPath = "/v2/sizes"
+		ServiceResponse response = internalGetApiRequest(apiKey, apiPath)
+		if(response.success) {
+			rtn.success = true
+			rtn.data = response.data.sizes
+			rtn.results = response.data
+		} else {
+
+		}
+
+		return rtn
 	}
 
 	ServiceResponse getDroplet(String apiKey, String dropletId) {
 		ServiceResponse rtn = ServiceResponse.prepare()
 		String apiPath = "/v2/droplets/${dropletId}"
 		ServiceResponse response = internalGetApiRequest(apiKey, apiPath)
-		log.info("response: ${response}")
+		log.debug("getDroplet response: ${response}")
 		if (response.success) {
 			rtn.success = true
 			rtn.data = response.data?.droplet
@@ -54,8 +161,8 @@ class DigitalOceanApiService {
 			rtn.results = response.data
 			rtn.data = response.data.droplet
 		} else {
-			rtn.errorCode = results.errorCode
-			rtn.results = rtn.data
+			rtn.errorCode = response.errorCode
+			rtn.results = response.data
 		}
 
 		return rtn
@@ -118,7 +225,7 @@ class DigitalOceanApiService {
 				}
 			}
 		} catch (e) {
-			log.debug("An Exception Has Occurred: ${e.message}")
+			log.error("An Exception Has Occurred: ${e.message}")
 		}
 		return new ServiceResponse(success: false, msg: 'Too many failed attempts to check Droplet action status')
 	}
@@ -182,6 +289,29 @@ class DigitalOceanApiService {
 		return rtn
 	}
 
+	ServiceResponse restoreSnapshot(String apiKey, String dropletId, String snapshotId) {
+		def rtn = ServiceResponse.prepare()
+		String apiPath = "/v2/droplets/${dropletId}/actions"
+		Map body = [
+			'type':'restore',
+			'image': snapshotId
+		]
+		log.debug("restoreSnapshot path: $apiPath, config: $body")
+		ServiceResponse response = internalPostApiRequest(apiKey, apiPath, body)
+		log.debug("restoreSnapshot response: ${response}")
+		if (response.success) {
+			rtn.success = true
+			rtn.data = response.data.action
+			rtn.results = response.data
+		} else {
+			rtn.success = false
+			rtn.errorCode = response.errorCode
+			rtn.results = response.data
+		}
+
+		return rtn
+	}
+
 	ServiceResponse deleteSnapshot(String apiKey, String snapshotId){
 		def rtn = ServiceResponse.prepare()
 		String apiPath = "/v2/snapshots/${snapshotId}"
@@ -201,6 +331,42 @@ class DigitalOceanApiService {
 
 	private ServiceResponse internalGetApiRequest(String apiKey, String path, Map queryParams=null, Map headers=null) {
 		internalApiRequest(apiKey, path, 'GET', null, queryParams, headers)
+	}
+
+	private ServiceResponse internalPaginatedGetApiRequest(String apiKey, String path, String resultKey, Map queryParams=null, Map addHeaders=null) {
+		ServiceResponse rtn = ServiceResponse.prepare()
+		List resultList = []
+		def pageNum = 1
+		def perPage = 10
+		Map tmpQueryParams = [per_page: "${perPage}", page: "${pageNum}"]
+		if(queryParams) {
+			tmpQueryParams += queryParams
+		}
+		def theresMore = true
+		while (theresMore) {
+			tmpQueryParams.page = "${pageNum}"
+			ServiceResponse response = internalGetApiRequest(apiKey, path, tmpQueryParams, addHeaders)
+			log.debug("internalPaginatedGetApiRequest response: $response")
+			if(response.success) {
+				rtn.success = true
+				resultList += response.data?."$resultKey" ?: []
+				theresMore = response.data?.links?.pages?.next ? true : false
+				pageNum++
+			} else {
+				theresMore = false
+				rtn.success = false
+				rtn.results = response.results
+				rtn.errorCode = response.errorCode
+			}
+		}
+
+		if(rtn.success) {
+			rtn.data = [
+				(resultKey): resultList
+			]
+		}
+
+		return rtn
 	}
 
 	private ServiceResponse internalPostApiRequest(String apiKey, String path, Map body=null, Map queryParams=null, Map headers=null) {
@@ -237,71 +403,4 @@ class DigitalOceanApiService {
 		}
 		return rtn
 	}
-
-	protected Map makeApiCall(HttpRequestBase http, String apiKey) {
-		CloseableHttpClient client = HttpClients.createDefault()
-		try {
-			http.addHeader("Authorization", "Bearer ${apiKey}")
-			http.addHeader("Content-Type", "application/json")
-			http.addHeader("Accept", "application/json")
-			def resp = client.execute(http)
-			try {
-				log.debug "resp: ${resp}"
-				String responseContent
-				if(resp?.entity) {
-					responseContent = EntityUtils.toString(resp?.entity)
-				}
-				log.debug "content: $responseContent"
-				JsonSlurper slurper = new JsonSlurper()
-				def json = responseContent ? slurper.parseText(responseContent) : null
-
-				return [resp: resp, json: json]
-			} catch (Exception e) {
-				log.debug "Error making DO API call: ${e.message}"
-			} finally {
-				resp.close()
-			}
-		} catch (Exception e) {
-			log.debug "Http Client error: ${e.localizedMessage}"
-			e.printStackTrace()
-		} finally {
-			client.close()
-		}
-	}
-
-	protected List makePaginatedApiCall(String apiKey, String path, String resultKey, Map queryParams) {
-		List resultList = []
-		def pageNum = 1
-		def perPage = 10
-		Map query = [per_page: "${perPage}", page: "${pageNum}"]
-		query += queryParams
-
-		URIBuilder uriBuilder = new URIBuilder(DIGITAL_OCEAN_ENDPOINT)
-		uriBuilder.path = path
-		query.each { k, v ->
-			uriBuilder.addParameter(k, v)
-		}
-
-		HttpGet httpGet = new HttpGet(uriBuilder.build())
-		Map respMap = makeApiCall(httpGet, apiKey)
-		resultList += respMap?.json?."$resultKey"
-		log.debug "resultList: $resultList"
-		def theresMore = respMap?.json?.links?.pages?.next ? true : false
-		while (theresMore) {
-			pageNum++
-			query.page = "${pageNum}"
-			uriBuilder.parameters = []
-			query.each { k, v ->
-				uriBuilder.addParameter(k, v)
-			}
-			httpGet = new HttpGet(uriBuilder.build())
-			def moreResults = makeApiCall(httpGet, apiKey)
-			log.debug "moreResults: $moreResults"
-			resultList += moreResults.json[resultKey]
-			theresMore = moreResults.json.links.pages.next ? true : false
-		}
-
-		return resultList
-	}
-
 }

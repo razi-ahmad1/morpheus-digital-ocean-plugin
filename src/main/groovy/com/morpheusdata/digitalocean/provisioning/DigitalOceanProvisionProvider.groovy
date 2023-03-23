@@ -7,6 +7,7 @@ import com.morpheusdata.core.AbstractProvisionProvider
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
 import com.morpheusdata.core.ProvisioningProvider
+import com.morpheusdata.model.BackupResult
 import com.morpheusdata.model.ComputeServer
 import com.morpheusdata.model.ComputeServerInterfaceType
 import com.morpheusdata.model.ComputeServerType
@@ -22,6 +23,9 @@ import com.morpheusdata.model.ServicePlan
 import com.morpheusdata.model.StorageVolume
 import com.morpheusdata.model.VirtualImage
 import com.morpheusdata.model.Workload
+import com.morpheusdata.model.Cloud
+import com.morpheusdata.model.KeyPair
+import com.morpheusdata.model.projection.BackupResultIdentityProjection
 import com.morpheusdata.model.provisioning.HostRequest
 import com.morpheusdata.model.provisioning.UserConfiguration
 import com.morpheusdata.model.provisioning.WorkloadRequest
@@ -162,19 +166,19 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 	@Override
 	ServiceResponse validateWorkload(Map opts) {
-		log.debug "validateWorkload: ${opts}"
+		log.debug("validateWorkload: ${opts}")
 		return ServiceResponse.success()
 	}
 
 	@Override
 	ServiceResponse validateInstance(Instance instance, Map opts) {
-		log.debug "validateInstance: ${instance} ${opts}"
+		log.debug("validateInstance: ${instance} ${opts}")
 		return ServiceResponse.success()
 	}
 
 	@Override
 	ServiceResponse validateDockerHost(ComputeServer server, Map opts) {
-		log.debug "validateDockerHost: ${server} ${opts}"
+		log.debug("validateDockerHost: ${server} ${opts}")
 		return ServiceResponse.success()
 	}
 
@@ -185,31 +189,35 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 	@Override
 	ServiceResponse<WorkloadResponse> runWorkload(Workload workload, WorkloadRequest workloadRequest, Map opts) {
-		log.debug "DO Provision Provider: runWorkload ${workload.configs} ${opts}"
+		log.debug("DO Provision Provider: runWorkload ${workload.configs} ${opts}")
 		def containerConfig = new groovy.json.JsonSlurper().parseText(workload.configs ?: '{}')
-		String apiKey = plugin.getAuthConfig(workload.server.cloud).doApiKey
+		ComputeServer server = workload.server
+		Cloud cloud = server?.cloud
+
+		String apiKey = plugin.getAuthConfig(cloud).doApiKey
 		if (!apiKey) {
 			return new ServiceResponse(success: false, msg: 'No API Key provided')
 		}
-
 		Map callbackOpts = [:]
-		ComputeServer server = workload.server
-		VirtualImage virtualImage
+
+		def imageId = opts.imageRef
+		log.debug("runWorkload: cloneContainerId: $opts.cloneContainerId, opts.backupSetId: $opts.backupSetId")
 		if(opts.cloneContainerId && opts.backupSetId) {
-//			def snapshot = digitalOceanSnapshotBackupService.getSnapshotForBackupResult(opts.backupSetId, opts.cloneContainerId)
-//			def snapshotImageId = snapshot?.snapshotId
-//			if(snapshotImageId){
-//				log.info("creating server from snapshot image: ${snapshotImageId}")
-//				imageId = snapshotImageId
-//			}
-		} else {
-			virtualImage = workload.server.sourceImage
+			BackupResult backupResult = plugin.morpheus.backup.backupResult.listByBackupSetIdAndContainerId(opts.backupSetId, opts.cloneContainerId).blockingFirst()
+			log.debug("runWorkload backupResults: $backupResult")
+			if(backupResult) {
+				def snapshotImageId = backupResult.externalId
+				if(snapshotImageId){
+					log.debug("creating server from snapshot image: ${snapshotImageId}")
+					imageId = snapshotImageId
+				}
+			}
 		}
 
-		
+		VirtualImage virtualImage = workload.server.sourceImage
 		// Grab the user configuration data (then update the server)
 		UsersConfiguration usersConfiguration = morpheus.provision.getUserConfig(workload, virtualImage, opts).blockingGet()
-		log.debug "usersConfiguration ${usersConfiguration}"
+		log.debug("usersConfiguration ${usersConfiguration}")
 		server.sshUsername = usersConfiguration.sshUsername
 		server.sshPassword = usersConfiguration.sshPassword
 		morpheus.computeServer.save([server]).blockingGet()
@@ -218,22 +226,22 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 		if(virtualImage?.isCloudInit) {
 			// Utilize the morpheus build cloud-init methods
 			Map cloudConfigOptions = workloadRequest.cloudConfigOpts
-			log.debug "cloudConfigOptions ${cloudConfigOptions}"
+			log.debug("cloudConfigOptions ${cloudConfigOptions}")
 
 			// Inform Morpheus to install the agent (or not) after the server is created
 			callbackOpts.installAgent = opts.installAgent && (cloudConfigOptions.installAgent != true)
 
 			def cloudConfigUser = workloadRequest.cloudConfigUser
-			log.debug "cloudConfigUser: ${cloudConfigUser}"
+			log.debug("cloudConfigUser: ${cloudConfigUser}")
 			userData = cloudConfigUser
 
 			// Not really used in DO provisioning (example only)
 			String metadata = workloadRequest.cloudConfigMeta
-			log.debug "metadata: ${metadata}"
+			log.debug("metadata: ${metadata}")
 
-//			// Not really used in DO provisioning (example only)
-//			String networkData = morpheus.provision.buildCloudNetworkData(com.morpheusdata.model.PlatformType.valueOf(server.osType), cloudConfigOptions).blockingGet()
-//			log.debug "networkData: ${networkData}"
+			//// Not really used in DO provisioning (example only)
+			//String networkData = morpheus.provision.buildCloudNetworkData(com.morpheusdata.model.PlatformType.valueOf(server.osType), cloudConfigOptions).blockingGet()
+			//log.debug("networkData: ${networkData}")
 		} else {
 			// These users will be created by Morpheus after provisioning
 			callbackOpts.createUsers = usersConfiguration.createUsers
@@ -242,39 +250,90 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 		// Now.. ready to create it in DO
 		def dropletConfig = [
 			'name'              : workload.server.getExternalHostname(),
-			'region'            : workload.server.cloud.configMap.datacenter,
+			'region'            : cloud.configMap.datacenter,
 			'size'              : workload.plan.externalId,
-			'image'             : opts.imageRef,
-			'backups'           : "${opts.doBackups}",
-			'ipv6'              : false,
-			'user_data'         : userData,
-			'private_networking': workload.privateNetworking
+			'image'             : imageId,
+			'backups'           : "${opts.doBackups == true}",
+			'ipv6'              : "${opts.ipv6 == true}",
+			'user_data'         : userData
 		]
-		dropletConfig.keys = morpheus.cloud.findOrGenerateKeyPair(workload.account).blockingGet().id
+
+		// Add ssh keys provided by morpheus core services, e.g. Account or User ssh keys
+		if(opts.sshKeys && opts.sshKeys.size() > 0) {
+			dropletConfig.ssh_keys = opts.sshKeys
+		}
+
+		// add account ssh key if its not in the droplet config
+		KeyPair accountKeyPair = morpheus.cloud.findOrGenerateKeyPair(workload.account).blockingGet()
+		def keyPairId = accountKeyPair?.configMap["${cloud.code}.keyId"]
+		if(keyPairId && (!dropletConfig.ssh_keys || dropletConfig.ssh_keys.contains(keyPairId) == false)) {
+			dropletConfig.ssh_keys = dropletConfig.ssh_keys ?: []
+			dropletConfig.ssh_keys << keyPairId
+		}
+
 
 		def response = apiService.createDroplet(apiKey, dropletConfig)
 		if (response.success) {
-			log.debug "Droplet Created ${response.results}"
+			log.debug("Droplet Created ${response.results}")
 
 			// Need to store the link between the Morpheus ComputeServer reference and the Digital Ocean object
 			def droplet = response.data
+			WorkloadResponse workloadResponse = dropletToWorkloadResponse(droplet, callbackOpts)
+
 			def externalId = droplet.id
 			server.externalId = externalId
 			server.osDevice = '/dev/vda'
 			server.dataDevice = '/dev/vda'
 			server.lvmEnabled = false
-			morpheus.computeServer.save([server]).blockingGet()
+			server = saveAndGet(server)
 
-			return new ServiceResponse<WorkloadResponse>(success: true, data: new WorkloadResponse(externalId: externalId, installAgent: callbackOpts.installAgent, createUsers: callbackOpts.createUsers))
+			return new ServiceResponse<WorkloadResponse>(success: true, data: workloadResponse)
 		} else {
-			log.debug "Failed to create droplet: $response.results"
+			log.debug("Failed to create droplet: $response.results")
 			return new ServiceResponse(success: false, msg: response.errorCode, content: response.content, error: response.data)
 		}
 	}
 
 	@Override
+	ServiceResponse finalizeWorkload(Workload workload) {
+		ServiceResponse rtn = ServiceResponse.prepare()
+		log.debug("finalizeWorkload: ${workload?.id}")
+		try {
+			ComputeServer server = workload.server
+			Cloud cloud = server.cloud
+			def serverDetails = getServerDetails(server)
+
+			// update IP address if necessary
+			if(serverDetails.success == true && serverDetails.data.publicIp) {
+				def doSave = false
+				def privateIp = serverDetails.data.privateIp
+				def publicIp = serverDetails.data.publicIp
+				if(server.internalIp != privateIp) {
+					server.internalIp = privateIp
+					doSave = true
+				}
+				if(serverDetails.data.publicIp != publicIp) {
+					server.externalIp = publicIp
+					doSave = true
+				}
+
+				if(doSave) {
+					morpheusContext.computeServer.save([server]).blockingGet()
+				}
+				rtn.success = true
+			}
+		} catch(e) {
+			rtn.success = false
+			rtn.msg = "Error in finalizing server: ${e.message}"
+			log.error("Error in finalizeWorkload: {}", e, e)
+		}
+
+		return rtn
+	}
+
+	@Override
 	ServiceResponse prepareHost(ComputeServer server, HostRequest hostRequest, Map opts) {
-		log.debug "prepareHost: ${server} ${hostRequest} ${opts}"
+		log.debug("prepareHost: ${server} ${hostRequest} ${opts}")
 
 		def rtn = [success: false, msg: null]
 		try {
@@ -296,7 +355,7 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 			}
 		} catch(e) {
 			rtn.msg = "Error in prepareHost: ${e}"
-			log.error "${rtn.msg}, ${e}", e
+			log.error("${rtn.msg}, ${e}", e)
 
 		}
 		new ServiceResponse(rtn.success, rtn.msg, null, null)
@@ -304,7 +363,7 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 	@Override
 	ServiceResponse<HostResponse> runHost(ComputeServer server, HostRequest hostRequest, Map opts) {
-		log.debug "runHost: ${server} ${hostRequest} ${opts}"
+		log.debug("runHost: ${server} ${hostRequest} ${opts}")
 
 		String apiKey = plugin.getAuthConfig(server.cloud).doApiKey
 		if (!apiKey) {
@@ -316,7 +375,7 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 		def rtn = [success:false]
 		def found = false
-		log.info("findOrCreateServer:${server.externalId}")
+		log.debug("findOrCreateServer: ${server.externalId}")
 
 		def dropletConfig = [
 				'name'              : cleanInstanceName(server.name),
@@ -328,14 +387,14 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 				'user_data'         : hostRequest.cloudConfigUser,
 				'private_networking': false
 		]
-		log.debug "post body: $dropletConfig"
+
 		def response = apiService.createDroplet(apiKey, dropletConfig)
 
 		Map callbackOpts = [:]
 		if(server.sourceImage?.isCloudInit) {
 			// Utilize the morpheus built cloud-init methods
 			Map cloudConfigOptions = hostRequest.cloudConfigOpts
-			log.debug "cloudConfigOptions ${cloudConfigOptions}"
+			log.debug("cloudConfigOptions ${cloudConfigOptions}")
 
 			// Inform Morpheus to install the agent (or not) after the server is created
 			callbackOpts.installAgent = opts.installAgent && (cloudConfigOptions.installAgent != true)
@@ -345,18 +404,19 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 		}
 
 		if (response.success) {
-			log.debug "Droplet Created ${response.json}"
+			log.debug("Droplet Created ${response.content}")
+
+			def droplet = response.data
+			HostResponse hostResponse = workloadResponseToHostResponse(dropletToWorkloadResponse(droplet, callbackOpts))
 
 			// Need to store the link between the Morpheus ComputeServer reference and the Digital Ocean object
-			def droplet = response.data
-			def externalId = droplet.id
-			server.externalId = externalId
+			server.externalId = hostResponse.externalId
 			server.osDevice = '/dev/vda'
 			server.dataDevice = '/dev/vda'
 			server.lvmEnabled = false
-			saveAndGet(server)
+			server = saveAndGet(server)
 
-			return new ServiceResponse<HostResponse>(success: true, data: new HostResponse(externalId: externalId, installAgent: callbackOpts.installAgent, createUsers: callbackOpts.createUsers))
+			return new ServiceResponse<HostResponse>(success: true, data: hostResponse)
 		} else {
 			log.debug("Failed to create droplet: $response.results")
 			return new ServiceResponse(success: false, msg: response?.errorCode, content: response.content, error: response.data)
@@ -365,53 +425,68 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 	@Override
 	ServiceResponse<HostResponse> waitForHost(ComputeServer server) {
-		log.debug "waitForHost: ${server}"
+		log.debug("waitForHost: ${server}")
 		try {
 			ServiceResponse<WorkloadResponse> statusResults = getServerDetails(server)
 			WorkloadResponse workloadResponse = statusResults.data
-			HostResponse hostResponse = new HostResponse([
-					unattendCustomized: workloadResponse.unattendCustomized,
-					externalId        : workloadResponse.externalId,
-					publicIp          : workloadResponse.publicIp,
-					privateIp         : workloadResponse.privateIp,
-					installAgent      : workloadResponse.installAgent,
-					noAgent           : workloadResponse.noAgent,
-					createUsers       : workloadResponse.createUsers,
-					success           : workloadResponse.success,
-					customized        : workloadResponse.customized,
-					licenseApplied    : workloadResponse.licenseApplied,
-					poolId            : workloadResponse.poolId,
-					hostname          : workloadResponse.hostname,
-					message           : workloadResponse.message,
-					skipNetworkWait   : workloadResponse.skipNetworkWait
-			])
+			HostResponse hostResponse = workloadResponseToHostResponse(workloadResponse)
 			return new ServiceResponse<HostResponse>(statusResults.success, statusResults.msg, statusResults.errors, hostResponse)
 		} catch(e) {
-			log.error "Error waitForHost: ${e}", e
+			log.error("Error waitForHost: ${e}", e)
 			return new ServiceResponse(success: false, msg: "Error in waiting for Host: ${e}")
 		}
 	}
 
 	@Override
 	ServiceResponse finalizeHost(ComputeServer server) {
-		log.debug "finalizeHost: ${server} "
-		return ServiceResponse.success();
+		ServiceResponse rtn = ServiceResponse.prepare()
+		log.debug("finalizeHost: ${server?.id}")
+		try {
+			Cloud cloud = server.cloud
+			def serverDetails = getServerDetails(server)
+
+			// update IP address if necessary
+			if(serverDetails.success == true && serverDetails.data.publicIp) {
+				def doSave = false
+				def privateIp = serverDetails.data.privateIp
+				def publicIp = serverDetails.data.publicIp
+				if(server.internalIp != privateIp) {
+					server.internalIp = privateIp
+					doSave = true
+				}
+				if(serverDetails.externalIp != publicIp) {
+					server.externalIp = publicIp
+					doSave = true
+				}
+
+				if(doSave) {
+					morpheusContext.computeServer.save([server]).blockingGet()
+				}
+				rtn.success = true
+			}
+		} catch(e) {
+			rtn.success = false
+			rtn.msg = "Error in finalizing server: ${e.message}"
+			log.error("Error in finalizeWorkload: {}", e, e)
+		}
+
+		return rtn
 	}
 
 	@Override
 	ServiceResponse resizeServer(ComputeServer server, ResizeRequest resizeRequest, Map opts) {
-		log.debug "resizeServer: ${server} ${resizeRequest} ${opts}"
+		log.debug("resizeServer: ${server} ${resizeRequest} ${opts}")
 		internalResizeServer(server, resizeRequest)
 	}
 
 	@Override
 	ServiceResponse resizeWorkload(Instance instance, Workload workload, ResizeRequest resizeRequest, Map opts) {
-		log.debug "resizeWorkload: ${instance} ${workload} ${resizeRequest} ${opts}"
+		log.debug("resizeWorkload: ${instance} ${workload} ${resizeRequest} ${opts}")
 		internalResizeServer(workload.server, resizeRequest)
 	}
 
 	private ServiceResponse internalResizeServer(ComputeServer server, ResizeRequest resizeRequest) {
-		log.debug "internalResizeServer: ${server} ${resizeRequest}"
+		log.debug("internalResizeServer: ${server} ${resizeRequest}")
 		ServiceResponse rtn = ServiceResponse.success()
 		try {
 			String apiKey = plugin.getAuthConfig(server.cloud).doApiKey
@@ -431,7 +506,7 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 		} catch(e) {
 			rtn.success = false
 			rtn.msg = e.message
-			log.error "Error in resizing server: ${e}", e
+			log.error("Error in resizing server: ${e}", e)
 		}
 		rtn
 	}
@@ -440,9 +515,9 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 	ServiceResponse<WorkloadResponse> stopWorkload(Workload workload) {
 		String dropletId = workload.server.externalId
 		String apiKey = plugin.getAuthConfig(workload.server.cloud).doApiKey
-		log.debug "stop server: ${dropletId}"
+		log.debug("stopWorkload: ${dropletId}")
 		if (!dropletId) {
-			log.debug "no Droplet ID provided"
+			log.debug("no Droplet ID provided")
 			return new ServiceResponse(success: false, msg: 'No Droplet ID provided')
 		}
 
@@ -458,9 +533,9 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 	ServiceResponse<WorkloadResponse> startWorkload(Workload workload) {
 		String dropletId = workload.server.externalId
 		String apiKey = plugin.getAuthConfig(workload.server.cloud).doApiKey
-		log.debug "startWorkload for server: ${dropletId}"
+		log.debug("startWorkload: ${dropletId}")
 		if (!dropletId) {
-			log.debug "no Droplet ID provided"
+			log.debug("no Droplet ID provided")
 			return new ServiceResponse(success: false, msg: 'No Droplet ID provided')
 		}
 		return apiService.performDropletAction(apiKey, dropletId, 'power_on')
@@ -469,7 +544,7 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 	@Override
 	ServiceResponse restartWorkload(Workload workload) {
 		ServiceResponse rtn = ServiceResponse.prepare()
-		log.debug 'restartWorkload'
+		log.debug("restartWorkload: ${workload.id}")
 		ServiceResponse stopResult = stopWorkload(workload)
 		if (stopResult.success) {
 			rtn = startWorkload(workload)
@@ -483,9 +558,9 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 	@Override
 	ServiceResponse removeWorkload(Workload workload, Map opts) {
 		String dropletId = workload.server.externalId
-		log.debug "removeWorkload for server: ${dropletId}"
+		log.debug("removeWorkload: ${dropletId}")
 		if (!dropletId) {
-			log.debug "no Droplet ID provided"
+			log.debug("no Droplet ID provided")
 			return new ServiceResponse(success: false, msg: 'No Droplet ID provided')
 		}
 
@@ -505,14 +580,14 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 	@Override
 	ServiceResponse<WorkloadResponse> getServerDetails(ComputeServer server) {
-		log.debug "getServerDetails"
+		log.debug("getServerDetails: $server.id")
 		ServiceResponse rtn = ServiceResponse.prepare(new WorkloadResponse())
 		String apiKey = plugin.getAuthConfig(server.cloud).doApiKey
 
 		Boolean pending = true
 		Integer attempts = 0
 		while (pending) {
-			log.debug "attempt $attempts"
+			log.debug("getServerDetails attempt $attempts")
 			sleep(1000l * 20l)
 			def resp = apiService.getDroplet(apiKey, server.externalId)
 			if (resp.success) {
@@ -531,17 +606,19 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 			}
 		}
 
-		rtn
+		return rtn
 	}
 
 	ServiceResponse<WorkloadResponse> powerOffServer(String apiKey, String dropletId) {
-		log.debug "power off server"
+		log.debug("powerOffServer: $dropletId")
 		return apiService.performDropletAction(apiKey, dropletId, 'power_off')
 	}
 
-	protected WorkloadResponse dropletToWorkloadResponse(droplet) {
+	protected WorkloadResponse dropletToWorkloadResponse(Map droplet, Map opts=[:]) {
 		WorkloadResponse workloadResponse = new WorkloadResponse()
 		workloadResponse.externalId = droplet?.id
+
+		// networks
 		def publicNetwork = droplet?.networks?.v4?.find {
 			it.type == 'public'
 		}
@@ -552,7 +629,36 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 		def privateIp = privateNetwork?.ip_address ?: publicIp
 		workloadResponse.publicIp = publicIp
 		workloadResponse.privateIp = privateIp
-		workloadResponse
+
+		if(opts?.containsKey('installAgent')) {
+			workloadResponse.installAgent = opts.installAgent
+		}
+		if(opts?.containsKey('createUsers')) {
+			workloadResponse.createUsers = opts.createUsers
+		}
+
+		return workloadResponse
+	}
+
+	protected HostResponse workloadResponseToHostResponse(WorkloadResponse workloadResponse) {
+		HostResponse hostResponse = new HostResponse([
+			unattendCustomized: workloadResponse.unattendCustomized,
+			externalId        : workloadResponse.externalId,
+			publicIp          : workloadResponse.publicIp,
+			privateIp         : workloadResponse.privateIp,
+			installAgent      : workloadResponse.installAgent,
+			noAgent           : workloadResponse.noAgent,
+			createUsers       : workloadResponse.createUsers,
+			success           : workloadResponse.success,
+			customized        : workloadResponse.customized,
+			licenseApplied    : workloadResponse.licenseApplied,
+			poolId            : workloadResponse.poolId,
+			hostname          : workloadResponse.hostname,
+			message           : workloadResponse.message,
+			skipNetworkWait   : workloadResponse.skipNetworkWait
+		])
+
+		return hostResponse
 	}
 
 	protected ComputeServer saveAndGet(ComputeServer server) {

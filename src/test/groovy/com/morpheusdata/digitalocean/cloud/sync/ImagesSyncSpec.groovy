@@ -81,8 +81,8 @@ class ImagesSyncSpec extends Specification {
 		service.execute()
 
 		then:
-		1 * apiService.makePaginatedApiCall(_, _, _, { map -> map.private == 'true' }) >> [[id: 'abc123']]
-		1 * apiService.makePaginatedApiCall(_, _, _, { map -> !map.private }) >> [[id: 'def567']]
+		1 * apiService.listImages(_, _, _, { map -> map.private == 'true' }) >> [[id: 'abc123']]
+		1 * apiService.listImages(_, _, _, { map -> !map.private }) >> [[id: 'def567']]
 		1 * virtualImageContext.listById(_) >> listFullObjectsObservable
 		1 * virtualImageContext.listSyncProjections(_) >> listSyncProjections
 		1 * virtualImageContext.create({ list -> list.size() == 1 && list.first().externalId == newImage.externalId }, cloud) >> Single.just(true)

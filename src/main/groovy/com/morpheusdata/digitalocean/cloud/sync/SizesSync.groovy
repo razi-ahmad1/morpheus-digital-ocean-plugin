@@ -1,5 +1,7 @@
 package com.morpheusdata.digitalocean.cloud.sync
 
+import com.morpheusdata.model.VirtualImage
+import com.morpheusdata.response.ServiceResponse
 import com.morpheusdata.digitalocean.DigitalOceanPlugin
 import com.morpheusdata.digitalocean.DigitalOceanApiService
 import com.morpheusdata.core.MorpheusContext
@@ -27,13 +29,12 @@ class SizesSync {
 	}
 
 	def execute() {
-		log.debug "execute: ${cloud}"
+		log.debug("SizesSync execute: ${cloud}")
 		try {
 			String apiKey = plugin.getAuthConfig(cloud).doApiKey
-			HttpGet sizesGet = new HttpGet("${DigitalOceanApiService.DIGITAL_OCEAN_ENDPOINT}/v2/sizes")
-			Map respMap = apiService.makeApiCall(sizesGet, apiKey)
+			ServiceResponse response = apiService.listDropletSizes(apiKey)
 			List<ServicePlan> servicePlans = []
-			respMap.json?.sizes?.each {
+			response.data?.each {
 				def name = getNameForSize(it)
 				def servicePlan = new ServicePlan(
 						code: "doplugin.size.${it.slug}",
@@ -53,7 +54,7 @@ class SizesSync {
 				)
 				servicePlans << servicePlan
 			}
-			log.info("api service plans: $servicePlans")
+			log.debug("api service plans: $servicePlans")
 			if (servicePlans) {
 				Observable<ServicePlanIdentityProjection> domainPlans = morpheusContext.servicePlan.listSyncProjections(cloud.id)
 				SyncTask<ServicePlanIdentityProjection, ServicePlan, ServicePlan> syncTask = new SyncTask(domainPlans, servicePlans)
@@ -81,18 +82,35 @@ class SizesSync {
 				}.start()
 			}
 		} catch(e) {
-			log.error "Error in execute : ${e}", e
+			log.error("Error in execute : ${e}", e)
 		}
 	}
 
-	def updateMatchedPlans(List<SyncTask.UpdateItem<ServicePlan,Map>> updateItems) {
-		List<ServicePlan> plansToUpdate = updateItems.collect { it.existingItem }
-		morpheusContext.servicePlan.save(plansToUpdate).blockingGet()
+	def updateMatchedPlans(List<SyncTask.UpdateItem<ServicePlan,ServicePlan>> updateItems) {
+		List<ServicePlan> itemsToUpdate = []
+		updateItems.each {it ->
+			ServicePlan remoteItem = it.masterItem
+			ServicePlan localItem = it.existingItem
+			def save = false
+
+			if(localItem.name != remoteItem.name) {
+				localItem.name = remoteItem.name
+				save = true
+			}
+
+			if(save) {
+				itemsToUpdate << localItem
+			}
+		}
+
+		if(itemsToUpdate.size() > 0) {
+			morpheusContext.servicePlan.save(itemsToUpdate).blockingGet()
+		}
 	}
 
 	def getNameForSize(sizeData) {
 		def memoryName = sizeData.memory < 1000 ? "${sizeData.memory} MB" : "${sizeData.memory.div(1024l)} GB"
-		"Plugin Droplet ${sizeData.vcpus} CPU, ${memoryName} Memory, ${sizeData.disk} GB Storage"
+		return "${sizeData.description} ${sizeData.vcpus} CPU, ${memoryName} Memory, ${sizeData.disk} GB Storage"
 	}
 
 }
