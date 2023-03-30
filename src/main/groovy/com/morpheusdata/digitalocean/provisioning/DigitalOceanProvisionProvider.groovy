@@ -46,7 +46,7 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 	DigitalOceanPlugin plugin
 	MorpheusContext context
 	private static final String DIGITAL_OCEAN_ENDPOINT = 'https://api.digitalocean.com'
-	private static final String UBUNTU_VIRTUAL_IMAGE_CODE = 'doplugin.image.os.digital-ocean-plugin.ubuntu.18.04'
+	private static final String UBUNTU_VIRTUAL_IMAGE_CODE = 'digitalocean.image.morpheus.ubuntu.18.04'
 	DigitalOceanApiService apiService
 
 	DigitalOceanProvisionProvider(DigitalOceanPlugin plugin, MorpheusContext context) {
@@ -79,7 +79,7 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 	Collection<VirtualImage> getVirtualImages() {
 		VirtualImage virtualImage = new VirtualImage(
 				code: UBUNTU_VIRTUAL_IMAGE_CODE,
-				category:'doplugin.image.os.digital-ocean-plugin',
+				category:'digitalocean.image.morpheus',
 				name:'Ubuntu 18.04 LTS (Digital Ocean Marketplace)',
 				imageType: ImageType.qcow2,
 				systemImage:true,
@@ -92,36 +92,101 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 	@Override
 	Collection<ComputeTypeLayout> getComputeTypeLayouts() {
-		ComputeTypeLayout layout = this.context.getComputeTypeLayoutFactoryService().buildDockerLayout(
-				'doplugin-docker',
+		List<ComputeTypeLayout> layouts = []
+		layouts << this.context.getComputeTypeLayoutFactoryService().buildDockerLayout(
+				'docker-digitalOcean-ubuntu-18.04',
 				'18.04',
-				this.code,
-				DigitalOceanCloudProvider.LINUX_VIRTUAL_IMAGE_CODE,
+				this.provisionTypeCode,
+			'digitalOceanLinux',
 				UBUNTU_VIRTUAL_IMAGE_CODE
 		).blockingGet()
 
-		[layout]
+		return layouts
 	}
 
 	@Override
 	public Collection<OptionType> getNodeOptionTypes() {
-		return new ArrayList<OptionType>()
+		def options = [
+			new OptionType(
+				name: 'image',
+				category: "provisionType.digitalOcean.custom",
+				code: 'provisionType.digitalOcean.custom.containerType.imageId',
+				fieldContext: 'domain',
+				fieldName: 'virtualImage.id',
+				fieldCode: 'gomorpheus.label.vmImage',
+				fieldLabel: 'VM Image',
+				fieldGroup: null,
+				inputType: OptionType.InputType.SELECT,
+				displayOrder: 10,
+				required: true,
+				optionSource: 'digitalOceanImage'
+			),
+			new OptionType(
+				name: 'mount logs',
+				category: "provisionType.digitalOcean.custom",
+				code: 'provisionType.digitalOcean.custom.containerType.mountLogs',
+				fieldContext: 'domain',
+				fieldName: 'mountLogs',
+				fieldCode: 'gomorpheus.optiontype.LogFolder',
+				fieldLabel: 'Log Folder',
+				fieldGroup: null,
+				inputType: OptionType.InputType.TEXT,
+				displayOrder: 20,
+				required: false,
+				editable: false
+			),
+			new OptionType(
+				name: 'mount config',
+				category: "provisionType.digitalOcean.custom",
+				code: 'provisionType.digitalOcean.custom.containerType.mountConfig',
+				fieldContext: 'domain',
+				fieldName: 'mountConfig',
+				fieldCode: 'gomorpheus.optiontype.ConfigFolder',
+				fieldLabel: 'Config Folder',
+				fieldGroup: null,
+				inputType: OptionType.InputType.TEXT,
+				displayOrder: 30,
+				required: false,
+				editable: false
+			),
+			new OptionType(
+				name: 'mount data',
+				category: "provisionType.digitalOcean.custom",
+				code: 'provisionType.digitalOcean.custom.containerType.mountData',
+				fieldContext: 'domain',
+				fieldName: 'mountData',
+				fieldCode: 'gomorpheus.optiontype.DeployFolder',
+				fieldLabel: 'Deploy Folder',
+				fieldGroup: null,
+				inputType: OptionType.InputType.TEXT,
+				displayOrder: 40,
+				required: false,
+				editable: false
+			)
+		]
+
+		return options
 	}
 
 	@Override
 	Collection<OptionType> getOptionTypes() {
-		//image OptionType
-		OptionType imageOption = new OptionType()
-		imageOption.name = 'image'
-		imageOption.code = 'digital-ocean-image'
-		imageOption.fieldName = 'imageId'
-		imageOption.fieldContext = 'config'
-		imageOption.fieldLabel = 'Image'
-		imageOption.inputType = OptionType.InputType.SELECT
-		imageOption.displayOrder = 100
-		imageOption.required = true
-		imageOption.optionSource = 'pluginImage'
-		[imageOption]
+		def options = []
+		// this needs to be on the instance type which will be handled by instance type packages
+		// TODO: move to generic instance type in package
+		// options << new OptionType(
+		// 	name: 'image',
+		// 	code: 'provisionType.digitalOcean.imageId',
+		// 	fieldName: 'imageId',
+		// 	fieldCode: 'gomorpheus.optiontype.Image',
+		// 	fieldContext: 'config',
+		// 	fieldLabel: 'Image',
+		// 	fieldGroup: 'Options',
+		// 	inputType: OptionType.InputType.SELECT,
+		// 	displayOrder: 100,
+		// 	required: true,
+		// 	optionSource: 'digitalOceanImage'
+		// )
+		return options
 	}
 
 	@Override
@@ -136,7 +201,12 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 	@Override
 	String getCode() {
-		return 'do-provider'
+		return 'digitalocean-provision-provider'
+	}
+
+	@Override
+	String getProvisionTypeCode() {
+		return "digitalocean"
 	}
 
 	@Override
@@ -189,7 +259,7 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 	@Override
 	ServiceResponse<WorkloadResponse> runWorkload(Workload workload, WorkloadRequest workloadRequest, Map opts) {
-		log.debug("DO Provision Provider: runWorkload ${workload.configs} ${opts}")
+		log.debug("runWorkload: ${workload.configs} ${opts}")
 		def containerConfig = new groovy.json.JsonSlurper().parseText(workload.configs ?: '{}')
 		ComputeServer server = workload.server
 		Cloud cloud = server?.cloud
@@ -260,18 +330,18 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 		// Add ssh keys provided by morpheus core services, e.g. Account or User ssh keys
 		if(opts.sshKeys && opts.sshKeys.size() > 0) {
-			dropletConfig.ssh_keys = opts.sshKeys
+			dropletConfig.ssh_keys = opts.sshKeys.collect { it.toString() }
 		}
 
 		// add account ssh key if its not in the droplet config
 		KeyPair accountKeyPair = morpheus.cloud.findOrGenerateKeyPair(workload.account).blockingGet()
 		def keyPairId = accountKeyPair?.configMap["${cloud.code}.keyId"]
-		if(keyPairId && (!dropletConfig.ssh_keys || dropletConfig.ssh_keys.contains(keyPairId) == false)) {
+		if(keyPairId && (!dropletConfig.ssh_keys || dropletConfig.ssh_keys.contains(keyPairId.toString()) == false)) {
 			dropletConfig.ssh_keys = dropletConfig.ssh_keys ?: []
-			dropletConfig.ssh_keys << keyPairId
+			dropletConfig.ssh_keys << keyPairId.toString()
 		}
 
-
+		// log.debug("runWorkload dropletConfig: $dropletConfig")
 		def response = apiService.createDroplet(apiKey, dropletConfig)
 		if (response.success) {
 			log.debug("Droplet Created ${response.results}")

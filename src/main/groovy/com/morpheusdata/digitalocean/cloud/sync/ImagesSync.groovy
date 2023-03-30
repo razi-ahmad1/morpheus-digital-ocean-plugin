@@ -1,5 +1,6 @@
 package com.morpheusdata.digitalocean.cloud.sync
 
+import com.morpheusdata.model.PlatformType
 import com.morpheusdata.response.ServiceResponse
 import com.morpheusdata.digitalocean.DigitalOceanPlugin
 import com.morpheusdata.digitalocean.DigitalOceanApiService
@@ -20,7 +21,7 @@ class ImagesSync {
 	DigitalOceanApiService apiService
 	DigitalOceanPlugin plugin
 
-	public ImagesSync(DigitalOceanPlugin plugin, Cloud cloud, DigitalOceanApiService apiService) {
+	ImagesSync(DigitalOceanPlugin plugin, Cloud cloud, DigitalOceanApiService apiService) {
 		this.plugin = plugin
 		this.cloud = cloud
 		this.morpheusContext = this.plugin.morpheusContext
@@ -34,6 +35,8 @@ class ImagesSync {
 			apiImages += listImages(true)
 
 			Observable<VirtualImageIdentityProjection> domainImages = morpheusContext.virtualImage.listSyncProjections(cloud.id)
+				.mergeWith(morpheusContext.virtualImage.listSyncProjectionsByCategory(cloud.account.id, ["digitalocean.image.os"] as String[]))
+
 			SyncTask<VirtualImageIdentityProjection, VirtualImage, VirtualImage> syncTask = new SyncTask(domainImages, apiImages)
 			syncTask.addMatchFunction { VirtualImageIdentityProjection projection, VirtualImage apiImage ->
 				projection.externalId == apiImage.externalId
@@ -74,7 +77,7 @@ class ImagesSync {
 		} else {
 			imageType = 'distribution'
 		}
-		String imageCodeBase = "doplugin.image.${userImages ? 'user' : 'os'}"
+		String imageCodeBase = "digitalocean.image.${userImages ? 'user' : 'os'}"
 
 		String apiKey = plugin.getAuthConfig(cloud).doApiKey
 		ServiceResponse response = apiService.listImages(apiKey, privateImage, imageType)
@@ -85,19 +88,24 @@ class ImagesSync {
 				Map props = [
 					name       : "${it.distribution} ${it.name}",
 					externalId : it.id,
-					code       : "${imageCodeBase}.${cloud.code}.${it.id}",
-					category   : "${imageCodeBase}.${cloud.code}",
+					code       : "${imageCodeBase}${userImages ? ".${cloud.code}.${it.id}" : ".${it.id}"}",
+					category   : "${imageCodeBase}${userImages ? ".${cloud.code}" : ""}",
 					imageType  : ImageType.qcow2,
-					platform   : it.distribution,
+					platform   : it.distribution == "Unknown" ? PlatformType.unknown : PlatformType.linux,
 					isPublic   : it.public,
 					minDisk    : it.min_disk_size,
 					locations  : it.regions,
 					account    : cloud.account,
-					refId      : cloud.id,
-					refType    : 'ComputeZone',
 					isCloudInit: true,
 					isPublic   : true
 				]
+
+				if(userImages) {
+					props += [
+						refId      : cloud.id,
+						refType    : 'ComputeZone'
+					]
+				}
 				virtualImages << new VirtualImage(props)
 			}
 		}
@@ -112,20 +120,34 @@ class ImagesSync {
 		updateItems.each {it ->
 			def masterItem = it.masterItem
 			VirtualImage existingItem = it.existingItem
-
-			def save = false
+			def doSave = false
 
 			if(existingItem.isCloudInit != masterItem.isCloudInit) {
 				existingItem.isCloudInit = masterItem.isCloudInit
-				save = true
+				doSave = true
 			}
 
 			if(existingItem.public != masterItem.public) {
 				existingItem.public = masterItem.public
-				save = true
+				doSave = true
 			}
 
-			if(save) {
+			if(existingItem.platform != masterItem.platform) {
+				existingItem.platform = masterItem.platform
+				doSave = true
+			}
+
+			if(existingItem.code != masterItem.code) {
+				existingItem.code = masterItem.code
+				doSave = true
+			}
+
+			if(existingItem.category != masterItem.category) {
+				existingItem.category = masterItem.category
+				doSave = true
+			}
+
+			if(doSave) {
 				imagesToUpdate << existingItem
 			}
 		}

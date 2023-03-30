@@ -56,17 +56,22 @@ class DigitalOceanCloudProvider implements CloudProvider {
 
 	@Override
 	String getCode() {
-		return 'digital-ocean-plugin'
+		return 'digitalocean'
 	}
 
 	@Override
 	String getName() {
-		return 'Digital Ocean Plugin'
+		return 'DigitalOcean'
 	}
 
 	@Override
 	String getDescription() {
-		return 'Digital Ocean Plugin Description'
+		return 'DigitalOcean'
+	}
+
+	@Override
+	String getDefaultProvisionTypeCode() {
+		return 'digitalocean-provision-provider'
 	}
 
 	@Override
@@ -106,8 +111,9 @@ class DigitalOceanCloudProvider implements CloudProvider {
 
 	@Override
 	Collection<OptionType> getOptionTypes() {
-		OptionType credentials = new OptionType(
-				code: 'do-plugin-credential',
+		def options = []
+		options << new OptionType(
+				code: 'zoneType.digitalocean.credential',
 				inputType: OptionType.InputType.CREDENTIAL,
 				name: 'Credentials',
 				fieldName: 'type',
@@ -119,9 +125,9 @@ class DigitalOceanCloudProvider implements CloudProvider {
 				optionSource: 'credentials',
 				config: '{"credentialTypes":["username-api-key"]}'
 		)
-		OptionType ot1 = new OptionType(
+		options << new OptionType(
 				name: 'Username',
-				code: 'do-username',
+				code: 'zoneType.digitalocean.username',
 				fieldName: 'doUsername',
 				displayOrder: 10,
 				fieldLabel: 'Username',
@@ -130,9 +136,9 @@ class DigitalOceanCloudProvider implements CloudProvider {
 				fieldContext: 'config',
 				localCredential: true
 		)
-		OptionType ot2 = new OptionType(
+		options << new OptionType(
 				name: 'API Key',
-				code: 'do-api-key',
+				code: 'zoneType.digitalocean.apiKey',
 				fieldName: 'doApiKey',
 				displayOrder: 20,
 				fieldLabel: 'API Key',
@@ -141,11 +147,11 @@ class DigitalOceanCloudProvider implements CloudProvider {
 				fieldContext: 'config',
 				localCredential: true
 		)
-		OptionType ot3 = new OptionType(
+		options << new OptionType(
 				name: 'Datacenter',
-				code: 'do-datacenter',
+				code: 'zoneType.digitalocean.datacenter',
 				fieldName: 'datacenter',
-				optionSource: 'datacenters',
+				optionSource: 'digitalOceanDataCenters',
 				displayOrder: 30,
 				fieldLabel: 'Datacenter',
 				required: true,
@@ -153,57 +159,57 @@ class DigitalOceanCloudProvider implements CloudProvider {
 				dependsOn: 'do-api-key',
 				fieldContext: 'config'
 		)
-		return [credentials, ot1, ot2, ot3]
+		return options
 	}
 
 	@Override
 	Collection<ComputeServerType> getComputeServerTypes() {
 		//digital ocean
 		def serverTypes = [
-				new ComputeServerType(code: 'digitalOceanWindows2', name: 'DigitalOcean Windows Node', description: '', platform: PlatformType.windows, agentType: ComputeServerType.AgentType.host,
+				new ComputeServerType(code: 'digitalOceanWindows', name: 'DigitalOcean Windows Node', description: '', platform: PlatformType.windows, agentType: ComputeServerType.AgentType.host,
 						enabled: true, selectable: false, externalDelete: true, managed: true, controlPower: true, controlSuspend: false, creatable: false, computeService: null,
-						displayOrder: 17, hasAutomation: true, reconfigureSupported: true, provisionTypeCode: 'do-provider',
+						displayOrder: 17, hasAutomation: true, reconfigureSupported: true, provisionTypeCode: 'digitalocean',
 						containerHypervisor: true, bareMetalHost: false, vmHypervisor: false, guestVm: true,
+						optionTypes: []
 				),
 
-				new ComputeServerType(code: 'digitalOceanVm2', name: 'DigitalOcean VM Instance', description: '', platform: PlatformType.linux,
+				new ComputeServerType(code: 'digitalOceanVm', name: 'DigitalOcean VM Instance', description: '', platform: PlatformType.linux,
 						enabled: true, selectable: false, externalDelete: true, managed: true, controlPower: true, controlSuspend: false, creatable: false, computeService: null,
-						displayOrder: 0, hasAutomation: true, reconfigureSupported: true, provisionTypeCode: 'do-provider',
+						displayOrder: 0, hasAutomation: true, reconfigureSupported: true, provisionTypeCode: 'digitalocean',
 						containerHypervisor: false, bareMetalHost: false, vmHypervisor: false, agentType: ComputeServerType.AgentType.guest, guestVm: true,
+						optionTypes: []
 				),
 
 				//docker
 				new ComputeServerType(code: LINUX_VIRTUAL_IMAGE_CODE, name: 'DigitalOcean Docker Host', description: '', platform: PlatformType.linux,
 						enabled: true, selectable: false, externalDelete: true, managed: true, controlPower: true, controlSuspend: false, creatable: true, computeService: null,
-						displayOrder: 16, hasAutomation: true, reconfigureSupported: true, provisionTypeCode: 'do-provider',
+						displayOrder: 16, hasAutomation: true, reconfigureSupported: true, provisionTypeCode: 'digitalocean',
 						containerHypervisor: true, bareMetalHost: false, vmHypervisor: false, agentType: ComputeServerType.AgentType.host, clusterType: ComputeServerType.ClusterType.docker,
 						computeTypeCode: 'docker-host',
+						optionTypes: []
 				),
 
 				//kubernetes
-				new ComputeServerType(code: 'digitalOceanKubeMaster2', name: 'Digital Ocean Kubernetes Master', description: '', platform: PlatformType.linux,
+				new ComputeServerType(code: 'digitalOceanKubeMaster', name: 'Digital Ocean Kubernetes Master', description: '', platform: PlatformType.linux,
 						reconfigureSupported: true, enabled: true, selectable: false, externalDelete: true, managed: true, controlPower: true, controlSuspend: true, creatable: true,
 						supportsConsoleKeymap: true, computeService: null, displayOrder: 10,
 						hasAutomation: true, containerHypervisor: true, bareMetalHost: false, vmHypervisor: false, agentType: ComputeServerType.AgentType.host, clusterType: ComputeServerType.ClusterType.kubernetes,
 						computeTypeCode: 'kube-master',
-						optionTypes: [
-
-						]
+						optionTypes: []
 				),
-				new ComputeServerType(code: 'digitalOceanKubeWorker2', name: 'Digital Ocean Kubernetes Worker', description: '', platform: PlatformType.linux,
+				new ComputeServerType(code: 'digitalOceanKubeWorker', name: 'Digital Ocean Kubernetes Worker', description: '', platform: PlatformType.linux,
 						reconfigureSupported: true, enabled: true, selectable: false, externalDelete: true, managed: true, controlPower: true, controlSuspend: true, creatable: true,
 						supportsConsoleKeymap: true, computeService: null, displayOrder: 10,
 						hasAutomation: true, containerHypervisor: true, bareMetalHost: false, vmHypervisor: false, agentType: ComputeServerType.AgentType.host, clusterType: ComputeServerType.ClusterType.kubernetes,
 						computeTypeCode: 'kube-worker',
-						optionTypes: [
-
-						]
+						optionTypes: []
 				),
 				//unmanaged discovered type
 				new ComputeServerType(code: 'digitalOceanUnmanaged', name: 'Digital Ocean VM', description: 'Digital Ocean VM', platform: PlatformType.none, agentType: ComputeServerType.AgentType.guest,
 						enabled: true, selectable: false, externalDelete: true, managed: false, controlPower: true, controlSuspend: false, creatable: false, computeService: null,
-						displayOrder: 99, hasAutomation: false, provisionTypeCode: 'do-provider',
-						containerHypervisor: false, bareMetalHost: false, vmHypervisor: false, managedServerType: 'digitalOceanVm2', guestVm: true, supportsConsoleKeymap: true
+						displayOrder: 99, hasAutomation: false, provisionTypeCode: 'digitalocean',
+						containerHypervisor: false, bareMetalHost: false, vmHypervisor: false, managedServerType: 'digitalOceanVm2', guestVm: true, supportsConsoleKeymap: true,
+						optionTypes: []
 				)
 		]
 
@@ -324,10 +330,10 @@ class DigitalOceanCloudProvider implements CloudProvider {
 	}
 
 	@Override
-	void refreshDaily(Cloud cloudInfo) {
-		log.debug("daily refresh cloud ${cloudInfo.code}")
-		(new SizesSync(plugin, cloudInfo, apiService)).execute()
-		log.debug("Completed daily refresh for cloud ${cloudInfo.code}")
+	void refreshDaily(Cloud cloud) {
+		log.debug("daily refresh cloud ${cloud.code}")
+		(new SizesSync(plugin, cloud, apiService)).execute()
+		log.debug("Completed daily refresh for cloud ${cloud.code}")
 	}
 
 	@Override

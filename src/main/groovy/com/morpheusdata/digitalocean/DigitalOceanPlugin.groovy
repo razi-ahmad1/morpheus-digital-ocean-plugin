@@ -20,7 +20,7 @@ class DigitalOceanPlugin extends Plugin {
 
 	@Override
 	void initialize() {
-		this.name = 'Digital Ocean Plugin'
+		this.name = 'DigitalOcean Plugin'
 		DigitalOceanCloudProvider cloudProvider = new DigitalOceanCloudProvider(this, morpheus)
 		DigitalOceanProvisionProvider provisionProvider = new DigitalOceanProvisionProvider(this, morpheus)
 		DigitalOceanOptionSourceProvider optionSourceProvider = new DigitalOceanOptionSourceProvider(this, morpheus)
@@ -34,7 +34,6 @@ class DigitalOceanPlugin extends Plugin {
 
 	@Override
 	void onDestroy() {
-
 	}
 
 	MorpheusContext getMorpheusContext() {

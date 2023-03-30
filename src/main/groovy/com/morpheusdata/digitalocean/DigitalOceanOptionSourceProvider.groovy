@@ -31,20 +31,20 @@ class DigitalOceanOptionSourceProvider implements OptionSourceProvider {
 
 	@Override
 	String getCode() {
-		return 'digital-ocean-option-source-plugin'
+		return 'digital-ocean-option-source'
 	}
 
 	@Override
 	String getName() {
-		return 'Digital Ocean Option Source Plugin'
+		return 'DigitalOcean Option Source'
 	}
 
 	@Override
 	List<String> getMethodNames() {
-		return new ArrayList<String>(['datacenters', 'pluginImage'])
+		return new ArrayList<String>(['digitalOceanDataCenters', 'digitalOceanImage'])
 	}
 
-	def datacenters(args) {
+	def digitalOceanDataCenters(args) {
 		log.debug "datacenters: ${args}"
 		return [[value:'nyc1', name:'New York 1', available:true],
 		[value:'sfo1', name:'San Francisco 1', available:true],
@@ -57,11 +57,15 @@ class DigitalOceanOptionSourceProvider implements OptionSourceProvider {
 		[value:'fra1', name:'Frankfurt 1', available:true]]
 	}
 
-	def pluginImage(args) {
-		log.debug "pluginImage: ${args}"
-		def zoneId = args?.size() > 0 ? args.getAt(0).zoneId.toLong() : null
+	def digitalOceanImage(args) {
+		log.debug "digitalOceanImage: ${args}"
+		def zoneId = args?.size() > 0 ? args.getAt(0).zoneId?.toLong() : null
+		def accountId = args?.size() > 0 ? args.getAt(0).accountId?.toLong() : null
 		List options = []
-		morpheus.virtualImage.listSyncProjections(zoneId).blockingSubscribe{options << [name: it.name, value: it.id]}
-		options
+		morpheus.virtualImage.listSyncProjectionsByCategory(accountId, "digitalocean.image.os").blockingSubscribe{options << [name: it.name, value: it.id]}
+		if(zoneId) {
+			morpheus.virtualImage.listSyncProjections(zoneId).blockingSubscribe{options << [name: it.name, value: it.id]}
+		}
+		return options.sort { it.name }
 	}
 }

@@ -1,5 +1,7 @@
 package com.morpheusdata.digitalocean.cloud.sync
 
+import com.morpheusdata.core.ProvisioningProvider
+import com.morpheusdata.model.ProvisionType
 import com.morpheusdata.model.VirtualImage
 import com.morpheusdata.response.ServiceResponse
 import com.morpheusdata.digitalocean.DigitalOceanPlugin
@@ -11,7 +13,6 @@ import com.morpheusdata.model.ServicePlan
 import com.morpheusdata.model.projection.ServicePlanIdentityProjection
 import groovy.util.logging.Slf4j
 import io.reactivex.Observable
-import org.apache.http.client.methods.HttpGet
 
 @Slf4j
 class SizesSync {
@@ -21,7 +22,7 @@ class SizesSync {
 	DigitalOceanApiService apiService
 	DigitalOceanPlugin plugin
 
-	public SizesSync(DigitalOceanPlugin plugin, Cloud cloud, DigitalOceanApiService apiService) {
+	SizesSync(DigitalOceanPlugin plugin, Cloud cloud, DigitalOceanApiService apiService) {
 		this.plugin = plugin
 		this.cloud = cloud
 		this.morpheusContext = this.plugin.morpheusContext
@@ -37,8 +38,8 @@ class SizesSync {
 			response.data?.each {
 				def name = getNameForSize(it)
 				def servicePlan = new ServicePlan(
-						code: "doplugin.size.${it.slug}",
-						provisionTypeCode: 'do-provider',
+						code: "digitalocean.size.${it.slug}",
+						provisionTypeCode: 'digitalocean',
 						description: name,
 						name: name,
 						editable: false,
@@ -56,7 +57,9 @@ class SizesSync {
 			}
 			log.debug("api service plans: $servicePlans")
 			if (servicePlans) {
-				Observable<ServicePlanIdentityProjection> domainPlans = morpheusContext.servicePlan.listSyncProjections(cloud.id)
+				ProvisioningProvider provisioningProvider = this.plugin.getProviderByCode('digitalocean-provision-provider')
+				ProvisionType provisionType = new ProvisionType(code: provisioningProvider.provisionTypeCode)
+				Observable<ServicePlanIdentityProjection> domainPlans = morpheusContext.servicePlan.listSyncProjections(provisionType)
 				SyncTask<ServicePlanIdentityProjection, ServicePlan, ServicePlan> syncTask = new SyncTask(domainPlans, servicePlans)
 				syncTask.addMatchFunction { ServicePlanIdentityProjection projection, ServicePlan apiPlan ->
 					projection.externalId == apiPlan.externalId
@@ -93,6 +96,7 @@ class SizesSync {
 			ServicePlan localItem = it.existingItem
 			def save = false
 
+			log.debug("updateMatchedPlans: localItem.id: ${localItem.id}, localItem.name: ${localItem.name}, remoteItem.name: ${remoteItem.name}")
 			if(localItem.name != remoteItem.name) {
 				localItem.name = remoteItem.name
 				save = true
@@ -104,6 +108,7 @@ class SizesSync {
 		}
 
 		if(itemsToUpdate.size() > 0) {
+			log.debug("SizeSync updating ${itemsToUpdate.size()} plans")
 			morpheusContext.servicePlan.save(itemsToUpdate).blockingGet()
 		}
 	}

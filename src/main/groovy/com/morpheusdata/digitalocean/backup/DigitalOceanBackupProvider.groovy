@@ -27,7 +27,7 @@ class DigitalOceanBackupProvider extends MorpheusBackupProvider {
 
 		DigitalOceanSnapshotProvider digitalOceanSnapshotProvider = new DigitalOceanSnapshotProvider(plugin, morpheusContext)
 		plugin.pluginProviders.put(digitalOceanSnapshotProvider.code, digitalOceanSnapshotProvider)
-		addScopedProvider(digitalOceanSnapshotProvider, "do-provider", null)
+		addScopedProvider(digitalOceanSnapshotProvider, "digitalocean", null)
 	}
 
 }

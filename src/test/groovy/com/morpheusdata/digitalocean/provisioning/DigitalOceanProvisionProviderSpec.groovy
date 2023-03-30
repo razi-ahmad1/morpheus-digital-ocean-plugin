@@ -323,7 +323,6 @@ class DigitalOceanProvisionProviderSpec extends Specification {
 
 		then:
 		options.size() == 1
-		options.first().optionSource == 'pluginImage'
 	}
 
 }
