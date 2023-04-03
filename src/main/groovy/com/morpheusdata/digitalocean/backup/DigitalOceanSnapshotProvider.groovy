@@ -42,7 +42,7 @@ class DigitalOceanSnapshotProvider extends AbstractMorpheusBackupTypeProvider {
 
 	@Override
 	String getName() {
-		return "DigitalOcean Vm Snapshot"
+		return "DigitalOcean VM Snapshot"
 	}
 
 	@Override

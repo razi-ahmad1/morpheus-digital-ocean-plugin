@@ -128,8 +128,9 @@ class DigitalOceanCloudProvider implements CloudProvider {
 		options << new OptionType(
 				name: 'Username',
 				code: 'zoneType.digitalocean.username',
-				fieldName: 'doUsername',
+				fieldName: 'username',
 				displayOrder: 10,
+				fieldCode: 'gomorpheus.optiontype.Username',
 				fieldLabel: 'Username',
 				required: true,
 				inputType: OptionType.InputType.TEXT,
@@ -139,8 +140,9 @@ class DigitalOceanCloudProvider implements CloudProvider {
 		options << new OptionType(
 				name: 'API Key',
 				code: 'zoneType.digitalocean.apiKey',
-				fieldName: 'doApiKey',
+				fieldName: 'apiKey',
 				displayOrder: 20,
+				fieldCode: 'gomorpheus.optiontype.ApiKey',
 				fieldLabel: 'API Key',
 				required: true,
 				inputType: OptionType.InputType.PASSWORD,
@@ -153,10 +155,11 @@ class DigitalOceanCloudProvider implements CloudProvider {
 				fieldName: 'datacenter',
 				optionSource: 'digitalOceanDataCenters',
 				displayOrder: 30,
+				fieldCode: 'gomorpheus.optiontype.Datacenter',
 				fieldLabel: 'Datacenter',
 				required: true,
 				inputType: OptionType.InputType.SELECT,
-				dependsOn: 'do-api-key',
+				dependsOn: 'config.apiKey, apiKey, credential',
 				fieldContext: 'config'
 		)
 		return options
