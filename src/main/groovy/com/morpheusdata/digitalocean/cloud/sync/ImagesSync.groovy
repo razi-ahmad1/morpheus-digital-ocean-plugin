@@ -20,22 +20,27 @@ class ImagesSync {
 	private MorpheusContext morpheusContext
 	DigitalOceanApiService apiService
 	DigitalOceanPlugin plugin
+	private Boolean userImages
 
-	ImagesSync(DigitalOceanPlugin plugin, Cloud cloud, DigitalOceanApiService apiService) {
+	ImagesSync(DigitalOceanPlugin plugin, Cloud cloud, DigitalOceanApiService apiService, Boolean userImages=false) {
 		this.plugin = plugin
 		this.cloud = cloud
 		this.morpheusContext = this.plugin.morpheusContext
 		this.apiService = apiService
+		this.userImages = userImages
 	}
 
 	def execute() {
-		log.debug("ImagesSync execute: ${cloud}")
+		log.debug("ImagesSync execute: ${cloud}, userImages: ${this.userImages}")
 		try {
-			List<VirtualImage> apiImages = listImages(false)
-			apiImages += listImages(true)
+			List<VirtualImage> apiImages = listImages(this.userImages)
 
-			Observable<VirtualImageIdentityProjection> domainImages = morpheusContext.virtualImage.listSyncProjections(cloud.id)
-				.mergeWith(morpheusContext.virtualImage.listSyncProjectionsByCategory(cloud.account.id, ["digitalocean.image.os"] as String[]))
+			Observable<VirtualImageIdentityProjection> domainImages
+			if(this.userImages) {
+				domainImages = morpheusContext.virtualImage.listSyncProjectionsByCloudAndCategory(cloud.account.id, cloud.id, ["digitalocean.image.user.${cloud.code}"] as String[])
+			} else {
+				domainImages = morpheusContext.virtualImage.listSyncProjectionsByCategory(cloud.account.id, ["digitalocean.image.os"] as String[])
+			}
 
 			SyncTask<VirtualImageIdentityProjection, VirtualImage, VirtualImage> syncTask = new SyncTask(domainImages, apiImages)
 			syncTask.addMatchFunction { VirtualImageIdentityProjection projection, VirtualImage apiImage ->

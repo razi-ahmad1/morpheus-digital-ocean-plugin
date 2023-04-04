@@ -28,10 +28,10 @@ class DigitalOceanCloudProvider implements CloudProvider {
 
 	public static String LINUX_VIRTUAL_IMAGE_CODE = 'digitalOceanLinux'
 
-	DigitalOceanCloudProvider(DigitalOceanPlugin plugin, MorpheusContext context) {
+	DigitalOceanCloudProvider(DigitalOceanPlugin plugin, MorpheusContext context, DigitalOceanApiService apiService) {
 		this.plugin = plugin
 		this.morpheusContext = context
-		apiService = new DigitalOceanApiService()
+		this.apiService = apiService ?: new DigitalOceanApiService()
 	}
 
 	@Override
@@ -327,7 +327,7 @@ class DigitalOceanCloudProvider implements CloudProvider {
 	@Override
 	ServiceResponse refresh(Cloud cloud) {
 		log.debug("Short refresh cloud ${cloud.code}")
-		(new ImagesSync(plugin, cloud, apiService)).execute()
+		(new ImagesSync(plugin, cloud, apiService, true)).execute()
 		log.debug("Completed short refresh for cloud $cloud.code")
 		return ServiceResponse.success()
 	}
@@ -336,6 +336,7 @@ class DigitalOceanCloudProvider implements CloudProvider {
 	void refreshDaily(Cloud cloud) {
 		log.debug("daily refresh cloud ${cloud.code}")
 		(new SizesSync(plugin, cloud, apiService)).execute()
+		(new ImagesSync(plugin, cloud, apiService, false)).execute()
 		log.debug("Completed daily refresh for cloud ${cloud.code}")
 	}
 

@@ -21,8 +21,13 @@ class DigitalOceanPlugin extends Plugin {
 	@Override
 	void initialize() {
 		this.name = 'DigitalOcean Plugin'
-		DigitalOceanCloudProvider cloudProvider = new DigitalOceanCloudProvider(this, morpheus)
-		DigitalOceanProvisionProvider provisionProvider = new DigitalOceanProvisionProvider(this, morpheus)
+
+		// shared instance of the api service for the all providers to ensure the
+		// api throttle rate is shared
+		def apiService = new DigitalOceanApiService()
+
+		DigitalOceanCloudProvider cloudProvider = new DigitalOceanCloudProvider(this, morpheus, apiService)
+		DigitalOceanProvisionProvider provisionProvider = new DigitalOceanProvisionProvider(this, morpheus, apiService)
 		DigitalOceanOptionSourceProvider optionSourceProvider = new DigitalOceanOptionSourceProvider(this, morpheus)
 		pluginProviders.put(provisionProvider.code, provisionProvider)
 		pluginProviders.put(cloudProvider.code, cloudProvider)

@@ -2,15 +2,12 @@ package com.morpheusdata.digitalocean.provisioning
 
 import com.morpheusdata.digitalocean.DigitalOceanPlugin
 import com.morpheusdata.digitalocean.DigitalOceanApiService
-import com.morpheusdata.digitalocean.cloud.DigitalOceanCloudProvider
 import com.morpheusdata.core.AbstractProvisionProvider
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
-import com.morpheusdata.core.ProvisioningProvider
 import com.morpheusdata.model.BackupResult
 import com.morpheusdata.model.ComputeServer
 import com.morpheusdata.model.ComputeServerInterfaceType
-import com.morpheusdata.model.ComputeServerType
 import com.morpheusdata.model.ComputeTypeLayout
 import com.morpheusdata.model.ComputeTypeSet
 import com.morpheusdata.model.ContainerType
@@ -25,34 +22,27 @@ import com.morpheusdata.model.VirtualImage
 import com.morpheusdata.model.Workload
 import com.morpheusdata.model.Cloud
 import com.morpheusdata.model.KeyPair
-import com.morpheusdata.model.projection.BackupResultIdentityProjection
 import com.morpheusdata.model.provisioning.HostRequest
-import com.morpheusdata.model.provisioning.UserConfiguration
 import com.morpheusdata.model.provisioning.WorkloadRequest
 import com.morpheusdata.model.provisioning.UsersConfiguration
 import com.morpheusdata.request.ResizeRequest
 import com.morpheusdata.response.HostResponse
 import com.morpheusdata.response.ServiceResponse
 import com.morpheusdata.response.WorkloadResponse
-import groovy.json.JsonOutput
 import groovy.util.logging.Slf4j
-import org.apache.http.client.methods.HttpDelete
-import org.apache.http.client.methods.HttpGet
-import org.apache.http.client.methods.HttpPost
-import org.apache.http.entity.StringEntity
 
 @Slf4j
 class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 	DigitalOceanPlugin plugin
-	MorpheusContext context
+	MorpheusContext morpheusContext
 	private static final String DIGITAL_OCEAN_ENDPOINT = 'https://api.digitalocean.com'
 	private static final String UBUNTU_VIRTUAL_IMAGE_CODE = 'digitalocean.image.morpheus.ubuntu.18.04'
 	DigitalOceanApiService apiService
 
-	DigitalOceanProvisionProvider(DigitalOceanPlugin plugin, MorpheusContext context) {
+	DigitalOceanProvisionProvider(DigitalOceanPlugin plugin, MorpheusContext morpheusContext, DigitalOceanApiService apiService) {
 		this.plugin = plugin
-		this.context = context
-		apiService = new DigitalOceanApiService()
+		this.morpheusContext = morpheusContext
+		this.apiService = apiService ?: new DigitalOceanApiService()
 	}
 
 	@Override
@@ -93,7 +83,7 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 	@Override
 	Collection<ComputeTypeLayout> getComputeTypeLayouts() {
 		List<ComputeTypeLayout> layouts = []
-		layouts << this.context.getComputeTypeLayoutFactoryService().buildDockerLayout(
+		layouts << this.morpheusContext.getComputeTypeLayoutFactoryService().buildDockerLayout(
 				'docker-digitalOcean-ubuntu-18.04',
 				'18.04',
 				this.provisionTypeCode,
@@ -211,7 +201,7 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 	@Override
 	String getName() {
-		return 'DigitalOcean'
+		return 'Digital Ocean'
 	}
 
 	@Override
@@ -232,6 +222,31 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 	@Override
 	Integer getMaxNetworks() {
 		return 1
+	}
+
+	@Override
+	Boolean supportsCustomServicePlans() {
+		return false
+	}
+
+	@Override
+	Boolean hasNodeTypes() {
+		return true
+	}
+
+	@Override
+	Boolean customSupported() {
+		return true
+	}
+
+	@Override
+	Boolean lvmSupported() {
+		return false
+	}
+
+	@Override
+	Boolean createServer() {
+		return true
 	}
 
 	@Override
@@ -640,7 +655,7 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 	@Override
 	MorpheusContext getMorpheus() {
-		return this.context
+		return this.morpheusContext
 	}
 
 	@Override
