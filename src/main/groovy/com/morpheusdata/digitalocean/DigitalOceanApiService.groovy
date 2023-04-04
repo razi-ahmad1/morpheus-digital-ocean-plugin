@@ -194,7 +194,7 @@ class DigitalOceanApiService {
 		}
 		ServiceResponse results = internalPostApiRequest(apiKey, apiPath, body)
 		if (results.success) {
-			rtn = checkActionComplete(apiKey, results.data.action.id)
+			rtn = checkActionComplete(apiKey, results.data.action.id.toString())
 		} else {
 			rtn.content = results.content
 			rtn.errorCode = results.erroCode
@@ -205,7 +205,7 @@ class DigitalOceanApiService {
 		return rtn
 	}
 
-	ServiceResponse checkActionComplete(String apiKey, Integer actionId) {
+	ServiceResponse checkActionComplete(String apiKey, String actionId) {
 		try {
 			def pending = true
 			def attempts = 0

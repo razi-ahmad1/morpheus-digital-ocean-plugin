@@ -66,6 +66,6 @@ class DigitalOceanOptionSourceProvider implements OptionSourceProvider {
 		if(zoneId) {
 			morpheus.virtualImage.listSyncProjections(zoneId).blockingSubscribe{options << [name: it.name, value: it.id]}
 		}
-		return options.sort { it.name }
+		return options.unique().sort { it.name }
 	}
 }

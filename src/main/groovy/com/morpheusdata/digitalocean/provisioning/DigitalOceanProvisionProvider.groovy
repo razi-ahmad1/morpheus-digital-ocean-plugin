@@ -593,7 +593,7 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 		ServiceResponse response = apiService.performDropletAction(apiKey, dropletId, 'shutdown')
 		if (response.success) {
-			return apiService.checkActionComplete(apiKey, response.data.id)
+			return apiService.checkActionComplete(apiKey, response.data.id.toString())
 		} else {
 			powerOffServer(apiKey, dropletId)
 		}
