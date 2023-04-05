@@ -109,6 +109,7 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 				inputType: OptionType.InputType.SELECT,
 				displayOrder: 10,
 				required: true,
+				optionSourceType: 'digitalOcean',
 				optionSource: 'digitalOceanImage'
 			),
 			new OptionType(
@@ -161,6 +162,28 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 	@Override
 	Collection<OptionType> getOptionTypes() {
 		def options = []
+		options << new OptionType(
+			name: 'skip agent install',
+			code: 'provisionType.digitalOcean.noAgent',
+			category: 'provisionType.digitalOcean',
+			inputType: OptionType.InputType.CHECKBOX,
+			fieldName: 'noAgent',
+			fieldContext: 'config',
+			fieldCode: 'gomorpheus.optiontype.SkipAgentInstall',
+			fieldLabel: 'Skip Agent Install',
+			fieldGroup:'Advanced Options',
+			displayOrder: 4,
+			required: false,
+			enabled: true,
+			editable:false,
+			global:false,
+			placeHolder:null,
+			helpBlock:'Skipping Agent installation will result in a lack of logging and guest operating system statistics. Automation scripts may also be adversely affected.',
+			defaultValue:null,
+			custom:false,
+			fieldClass:null
+		)
+
 		// this needs to be on the instance type which will be handled by instance type packages
 		// TODO: move to generic instance type in package
 		// options << new OptionType(
@@ -174,8 +197,10 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 		// 	inputType: OptionType.InputType.SELECT,
 		// 	displayOrder: 100,
 		// 	required: true,
+		//  optionSourceType: 'digitalOcean', // only required until embedded is removed
 		// 	optionSource: 'digitalOceanImage'
 		// )
+
 		return options
 	}
 
