@@ -170,14 +170,14 @@ class DigitalOceanCloudProvider implements CloudProvider {
 	Collection<ComputeServerType> getComputeServerTypes() {
 		//digital ocean
 		def serverTypes = [
-				new ComputeServerType(code: 'digitalOceanWindows', name: 'DigitalOcean Windows Node', description: '', platform: PlatformType.windows, agentType: ComputeServerType.AgentType.host,
+				new ComputeServerType(code: 'digitalOceanWindows', name: 'DigitalOcean Windows Node', description: '', platform: PlatformType.windows, agentType: ComputeServerType.AgentType.host, nodeType:'morpheus-windows-node',
 						enabled: true, selectable: false, externalDelete: true, managed: true, controlPower: true, controlSuspend: false, creatable: false, computeService: null,
 						displayOrder: 17, hasAutomation: true, reconfigureSupported: true, provisionTypeCode: 'digitalocean',
 						containerHypervisor: true, bareMetalHost: false, vmHypervisor: false, guestVm: true,
 						optionTypes: []
 				),
 
-				new ComputeServerType(code: 'digitalOceanVm', name: 'DigitalOcean VM Instance', description: '', platform: PlatformType.linux,
+				new ComputeServerType(code: 'digitalOceanVm', name: 'DigitalOcean VM Instance', description: '', platform: PlatformType.linux, nodeType:'morpheus-vm-node',
 						enabled: true, selectable: false, externalDelete: true, managed: true, controlPower: true, controlSuspend: false, creatable: false, computeService: null,
 						displayOrder: 0, hasAutomation: true, reconfigureSupported: true, provisionTypeCode: 'digitalocean',
 						containerHypervisor: false, bareMetalHost: false, vmHypervisor: false, agentType: ComputeServerType.AgentType.guest, guestVm: true,
@@ -185,7 +185,7 @@ class DigitalOceanCloudProvider implements CloudProvider {
 				),
 
 				//docker
-				new ComputeServerType(code: LINUX_VIRTUAL_IMAGE_CODE, name: 'DigitalOcean Docker Host', description: '', platform: PlatformType.linux,
+				new ComputeServerType(code: LINUX_VIRTUAL_IMAGE_CODE, name: 'DigitalOcean Docker Host', description: '', platform: PlatformType.linux, nodeType:'morpheus-node',
 						enabled: true, selectable: false, externalDelete: true, managed: true, controlPower: true, controlSuspend: false, creatable: true, computeService: null,
 						displayOrder: 16, hasAutomation: true, reconfigureSupported: true, provisionTypeCode: 'digitalocean',
 						containerHypervisor: true, bareMetalHost: false, vmHypervisor: false, agentType: ComputeServerType.AgentType.host, clusterType: ComputeServerType.ClusterType.docker,
@@ -194,14 +194,14 @@ class DigitalOceanCloudProvider implements CloudProvider {
 				),
 
 				//kubernetes
-				new ComputeServerType(code: 'digitalOceanKubeMaster', name: 'Digital Ocean Kubernetes Master', description: '', platform: PlatformType.linux,
-						reconfigureSupported: true, enabled: true, selectable: false, externalDelete: true, managed: true, controlPower: true, controlSuspend: true, creatable: true,
+				new ComputeServerType(code: 'digitalOceanKubeMaster', name: 'Digital Ocean Kubernetes Master', description: '', platform: PlatformType.linux, nodeType:'kube-master',
+					reconfigureSupported: true, enabled: true, selectable: false, externalDelete: true, managed: true, controlPower: true, controlSuspend: true, creatable: true,
 						supportsConsoleKeymap: true, computeService: null, displayOrder: 10,
 						hasAutomation: true, containerHypervisor: true, bareMetalHost: false, vmHypervisor: false, agentType: ComputeServerType.AgentType.host, clusterType: ComputeServerType.ClusterType.kubernetes,
 						computeTypeCode: 'kube-master',
 						optionTypes: []
 				),
-				new ComputeServerType(code: 'digitalOceanKubeWorker', name: 'Digital Ocean Kubernetes Worker', description: '', platform: PlatformType.linux,
+				new ComputeServerType(code: 'digitalOceanKubeWorker', name: 'Digital Ocean Kubernetes Worker', description: '', platform: PlatformType.linux, nodeType:'kube-worker',
 						reconfigureSupported: true, enabled: true, selectable: false, externalDelete: true, managed: true, controlPower: true, controlSuspend: true, creatable: true,
 						supportsConsoleKeymap: true, computeService: null, displayOrder: 10,
 						hasAutomation: true, containerHypervisor: true, bareMetalHost: false, vmHypervisor: false, agentType: ComputeServerType.AgentType.host, clusterType: ComputeServerType.ClusterType.kubernetes,
