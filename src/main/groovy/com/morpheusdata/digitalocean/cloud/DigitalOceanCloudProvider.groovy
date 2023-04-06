@@ -81,7 +81,7 @@ class DigitalOceanCloudProvider implements CloudProvider {
 
 	@Override
 	Boolean hasNetworks() {
-		return false
+		return true
 	}
 
 	@Override
@@ -91,7 +91,7 @@ class DigitalOceanCloudProvider implements CloudProvider {
 
 	@Override
 	Boolean hasCloudInit() {
-		false
+		return true
 	}
 
 	@Override
@@ -106,7 +106,7 @@ class DigitalOceanCloudProvider implements CloudProvider {
 
 	@Override
 	Boolean supportsDistributedWorker() {
-		false
+		return false
 	}
 
 	@Override
