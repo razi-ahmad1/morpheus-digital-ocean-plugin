@@ -265,8 +265,8 @@ class DigitalOceanCloudProvider implements CloudProvider {
 		def username
 
 		if(validateCloudRequest.credentialType == 'local') {
-			apiKey = zoneInfo.configMap.doApiKey
-			username = zoneInfo.configMap.doUsername
+			apiKey = zoneInfo.configMap.apiKey
+			username = zoneInfo.configMap.username
 		} else if (validateCloudRequest.credentialType && validateCloudRequest.credentialType.isNumber()) {
 			def credentialId = validateCloudRequest.credentialType.toLong()
 			AccountCredential accountCredential = morpheusContext.accountCredential.get(credentialId).blockingGet()
@@ -319,7 +319,7 @@ class DigitalOceanCloudProvider implements CloudProvider {
 				log.debug("no morpheus keys found")
 			}
 		} else {
-			serviceResponse = new ServiceResponse(success: false, msg: respMap.resp?.statusLine?.statusCode, content: respMap.json)
+			serviceResponse = new ServiceResponse(success: false, msg: initResponse.errorCode, content: initResponse.content)
 		}
 
 		serviceResponse

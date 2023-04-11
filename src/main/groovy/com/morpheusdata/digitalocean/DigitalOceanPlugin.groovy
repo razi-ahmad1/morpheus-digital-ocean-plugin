@@ -62,20 +62,21 @@ class DigitalOceanPlugin extends Plugin {
 
 		log.debug("AccountCredential loaded: $cloud.accountCredentialLoaded, Data: $cloud.accountCredentialData")
 
-		def doUsername
+		def username
 		if(cloud.accountCredentialData && cloud.accountCredentialData.containsKey('username')) {
-			doUsername = cloud.accountCredentialData['username']
+			username = cloud.accountCredentialData['username']
 		} else {
-			doUsername = cloud.configMap.doUsername
+			username = cloud.configMap.username
 		}
-		def doApiKey
+		def apiKey
 		if(cloud.accountCredentialData && cloud.accountCredentialData.containsKey('password')) {
-			doApiKey = cloud.accountCredentialData['password']
+			apiKey = cloud.accountCredentialData['password']
 		} else {
-			doApiKey = cloud.configMap.doApiKey
+			apiKey = cloud.configMap.apiKey
 		}
-		rtn.doUsername = doUsername
-		rtn.doApiKey = doApiKey
+
+		rtn.doUsername = username
+		rtn.doApiKey = apiKey
 		return rtn
 	}
 }
