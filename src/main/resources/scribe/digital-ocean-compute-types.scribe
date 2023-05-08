@@ -1,0 +1,71 @@
+resource "container-type" "docker-digitalOcean-ubuntu-18_04" {
+  code             = "docker-digitalOcean-ubuntu-18.04"
+  shortName        = "ubuntu"
+  name             = "Docker Ubuntu 18.04"
+  ports            = [22]
+  containerVersion = "18.04"
+  repositoryImage  = ""
+  imageCode        = "morpheus ubuntu 18.04"
+  entryPoint       = ""
+  mountLogs        = "/var/log"
+  statTypeCode     = "vm"
+  logTypeCode      = "ubuntu"
+  showServerLogs   = "true"
+  category         = "ubuntu"
+  cloneType        = "ubuntu"
+  priorityOrder    = 0
+  serverType       = "vm"
+  providerType     = "digitalocean"
+  checkTypeCode    = "vmCheck"
+  virtualImage {
+    code = "digitalocean.image.morpheus.ubuntu.18.04"
+  }
+  containerPorts = [
+    { code = "ubuntu.22" }
+  ]
+  provisionType {
+    code = "digitalocean"
+  }
+}
+
+resource "compute-type-set" "docker-digitalOcean-ubuntu-18_04-set" {
+  code          = "docker-digitalOcean-ubuntu-18.04-set"
+  name          = "docker host"
+  containerType {
+    code = "docker-digitalOcean-ubuntu-18.04"
+  }
+  computeServerType {
+    code = "digitalOceanLinux"
+  }
+  category                = "ubuntu"
+  priorityOrder           = 0
+  dynamicCount            = true
+  nodeCount               = 1
+  nodeType                = "worker"
+  canAddNodes             = true
+  installContainerRuntime = true
+  installStorageRuntime   = true
+}
+
+resource "compute-type-layout" "docker-digitalOcean-ubuntu-18_04-single" {
+  code           = "docker-digitalOcean-ubuntu-18.04-single"
+  name           = "Digital Ocean Docker Host"
+  sortOrder      = 5
+  computeVersion = "18.04"
+  description    = "This will provision a single docker host vm in digitalOcean"
+  type {
+    code = "digitalOceanLinux"
+  }
+  serverCount       = 1
+  memoryRequirement = 1024 * 1024 * 1024
+  hasAutoScale      = true
+  groupType {
+    code = "docker-cluster"
+  }
+  computeServers = [
+    { code = "docker-digitalOcean-ubuntu-18.04-set" }
+  ]
+  provisionType {
+    code = "digitalocean"
+  }
+}

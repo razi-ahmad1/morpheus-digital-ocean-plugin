@@ -154,6 +154,7 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 				required: false,
 				editable: false
 			)
+
 		]
 
 		return options
@@ -183,23 +184,6 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 			custom:false,
 			fieldClass:null
 		)
-
-		// this needs to be on the instance type which will be handled by instance type packages
-		// TODO: move to generic instance type in package
-		// options << new OptionType(
-		// 	name: 'image',
-		// 	code: 'provisionType.digitalOcean.imageId',
-		// 	fieldName: 'imageId',
-		// 	fieldCode: 'gomorpheus.optiontype.Image',
-		// 	fieldContext: 'config',
-		// 	fieldLabel: 'Image',
-		// 	fieldGroup: 'Options',
-		// 	inputType: OptionType.InputType.SELECT,
-		// 	displayOrder: 100,
-		// 	required: true,
-		//  optionSourceType: 'digitalOcean', // only required until embedded is removed
-		// 	optionSource: 'digitalOceanImage'
-		// )
 
 		return options
 	}

@@ -1,0 +1,122 @@
+resource "option-type" "instanceType-digitalOcean-imageId" {
+  code             = "instanceType.digitalOcean.imageId"
+  type             = "select"
+  name             = "image"
+  category         = "provisionType.digitalOcean"
+  fieldName        = "imageId"
+  optionSource     = "digitalOceanImage"
+  optionSourceType = "digitalOcean"
+  fieldCode        = "gomorpheus.optiontype.Image"
+  fieldLabel       = "Image"
+  fieldContext     = "config"
+  fieldGroup       = "Options"
+  required         = false
+  enabled          = true
+  editable         = false
+  global           = false
+  placeHolder      = null
+  helpBlock        = ""
+  defaultValue     = null
+  custom           = false
+  displayOrder     = 100
+  fieldClass       = null
+}
+
+resource "instance-type" "digitalocean" {
+  code                 = "digitalocean"
+  name                 = "DigitalOcean"
+  category             = "cloud"
+  active               = true
+  enabled              = true
+  viewSet              = "digitalocean"
+  stackTier            = 30
+  hasConfig            = false
+  hasSettings          = false
+  hasDeployment        = false
+  versions             = ["1.0"]
+  hasAutoScale         = true
+  description          = "Cloud computing designed for developers. Provisions any Digital Ocean Droplet VM."
+  provisionTypeDefault = true
+  environmentPrefix    = "OCEAN"
+  backupType           = "digitaloceanSnapshot"
+  provisionSelectType  = "zone"
+  provisionType {
+    code = "digitalocean"
+  }
+  optionTypes = [
+    { code = "instanceType.exposePorts" },
+    { code = "instanceType.digitalOcean.imageId" }
+  ]
+}
+
+resource "workload-type" "digitalocean-1_0" {
+  code             = "digitalocean-1.0"
+  shortName        = "digitalocean"
+  name             = "Digital Ocean VM"
+  ports            = []
+  containerVersion = "1.0"
+  repositoryImage  = ""
+  entryPoint       = ""
+  category         = "digitalocean"
+  statTypeCode     = "vm"
+  logTypeCode      = "digitalocean"
+  checkTypeCode    = "containerCheck"
+  serverType       = "vm"
+  mountPoint       = "/data"
+  provisionType {
+    code = "digitalocean"
+  }
+  actions = [
+    { code = "generic-remove-node" }
+  ]
+  backupType = "digitaloceanSnapshot"
+}
+
+resource "workload-type-set" "digitalocean-1_0-set" {
+  code          = "digitalocean-1.0-set"
+  containerType {
+    code = "digitalocean-1.0"
+  }
+  priorityOrder  = 0
+  dynamicCount   = true
+  containerCount = 1
+}
+
+resource "instance-type-layout" "digitalocean-1_0-single" {
+  code            = "digitalocean-1.0-single"
+  name            = "DigitalOcean VM"
+  sortOrder       = 0
+  instanceVersion = "1.0"
+  description     = "This will provision a single process with no redundancy"
+  instanceType {
+    code = "digitalocean"
+  }
+  serverCount = 1
+  portCount   = 1
+  enabled     = true
+  creatable   = true
+  containers  = [
+    { code = "digitalocean-1.0-set" }
+  ]
+  actions = [
+    { code = "generic-add-node" }
+  ]
+  optionTypes   = []
+  provisionType {
+    code = "digitalocean"
+  }
+}
+
+resource "scale-action" "digitalocean-1_0-single" {
+  code      = "digitalocean-1.0-single"
+  scaleType = "action"
+  layout {
+    code = "digitalocean-1.0-single"
+  }
+  upAction {
+    code = "generic-add-node"
+  }
+  downAction {
+    code = "generic-remove-node"
+  }
+}
