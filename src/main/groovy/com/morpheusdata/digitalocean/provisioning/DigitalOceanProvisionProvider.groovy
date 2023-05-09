@@ -152,7 +152,8 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 				inputType: OptionType.InputType.TEXT,
 				displayOrder: 40,
 				required: false,
-				editable: false
+				editable: false,
+				helpTextI18nCode: "gomorpheus.help.deployFolder"
 			)
 
 		]
