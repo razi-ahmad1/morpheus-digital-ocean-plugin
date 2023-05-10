@@ -13,10 +13,12 @@ class DigitalOceanOptionSourceProvider implements OptionSourceProvider {
 
 	Plugin plugin
 	MorpheusContext morpheusContext
+	DigitalOceanApiService apiService
 
-	DigitalOceanOptionSourceProvider(Plugin plugin, MorpheusContext context) {
+	DigitalOceanOptionSourceProvider(Plugin plugin, MorpheusContext context, DigitalOceanApiService apiService) {
 		this.plugin = plugin
 		this.morpheusContext = context
+		this.apiService = apiService
 	}
 
 	@Override
@@ -46,15 +48,18 @@ class DigitalOceanOptionSourceProvider implements OptionSourceProvider {
 
 	def digitalOceanDataCenters(args) {
 		log.debug "datacenters: ${args}"
-		return [[value:'nyc1', name:'New York 1', available:true],
-		[value:'sfo1', name:'San Francisco 1', available:true],
-		[value:'nyc2', name:'New York 2', available:true],
-		[value:'ams2', name:'Amsterdam 2', available:true],
-		[value:'sgp1', name:'Singapore 1', available:true],
-		[value:'lon1', name:'London 1', available:true],
-		[value:'nyc3', name:'New York 3', available:true],
-		[value:'ams3', name:'Amsterdam 3', available:true],
-		[value:'fra1', name:'Frankfurt 1', available:true]]
+		List datacenters = []
+		String apiKey = plugin.getAuthConfig(args.getAt(0) as Map).doApiKey
+		log.debug("API KEY: ${apiKey}")
+		def response = apiService.listRegions(apiKey)
+		if(response.success) {
+			datacenters = response.data
+		}
+
+		log.debug("listDatacenters regions: $datacenters")
+		def rtn = datacenters?.collect { [name: it.name, value: it.slug] }?.sort { it.name } ?: []
+
+		return rtn
 	}
 
 	def digitalOceanImage(args) {
