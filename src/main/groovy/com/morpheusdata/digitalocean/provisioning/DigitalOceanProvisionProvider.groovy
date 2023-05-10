@@ -267,19 +267,20 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 	@Override
 	ServiceResponse validateInstance(Instance instance, Map opts) {
-		log.debug("validateInstance: ${instance} ${opts}")
+		log.debug("validateInstance, instance: ${instance}, opts: ${opts}")
 		return ServiceResponse.success()
 	}
 
 	@Override
 	ServiceResponse validateDockerHost(ComputeServer server, Map opts) {
-		log.debug("validateDockerHost: ${server} ${opts}")
+		log.debug("validateDockerHost, server: ${server}, opts: ${opts}")
 		return ServiceResponse.success()
 	}
 
 	@Override
 	ServiceResponse prepareWorkload(Workload workload, WorkloadRequest workloadRequest, Map opts) {
-		ServiceResponse.success()
+		log.debug("prepareWorkload, workload: ${workload}, workloadRequest: ${workloadRequest}, opts: ${opts}")
+		return ServiceResponse.success()
 	}
 
 	@Override
@@ -324,7 +325,8 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 			log.debug("cloudConfigOptions ${cloudConfigOptions}")
 
 			// Inform Morpheus to install the agent (or not) after the server is created
-			callbackOpts.installAgent = opts.installAgent && (cloudConfigOptions.installAgent != true)
+			callbackOpts.noAgent = (opts.config?.containsKey("noAgent") == true && opts.config.noAgent == true)
+			callbackOpts.installAgent = (opts.config?.containsKey("noAgent") == false || (opts.config?.containsKey("noAgent") && opts.config.noAgent != true))
 
 			def cloudConfigUser = workloadRequest.cloudConfigUser
 			log.debug("cloudConfigUser: ${cloudConfigUser}")
@@ -727,6 +729,9 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 		if(opts?.containsKey('installAgent')) {
 			workloadResponse.installAgent = opts.installAgent
+		}
+		if(opts?.containsKey('noAgent')) {
+			workloadResponse.noAgent = opts.noAgent
 		}
 		if(opts?.containsKey('createUsers')) {
 			workloadResponse.createUsers = opts.createUsers
