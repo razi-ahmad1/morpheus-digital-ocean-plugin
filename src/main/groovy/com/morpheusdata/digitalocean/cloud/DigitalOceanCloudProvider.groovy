@@ -355,8 +355,7 @@ class DigitalOceanCloudProvider implements CloudProvider {
 			log.debug("no Droplet ID provided")
 			return new ServiceResponse(success: false, msg: 'No Droplet ID provided')
 		}
-		def body = ['type': 'power_on']
-		apiService.performDropletAction(apiKey, dropletId, body)
+		return apiService.performDropletAction(apiKey, dropletId, 'power_on')
 	}
 
 	@Override
@@ -368,8 +367,7 @@ class DigitalOceanCloudProvider implements CloudProvider {
 			log.debug("no Droplet ID provided")
 			return new ServiceResponse(success: false, msg: 'No Droplet ID provided')
 		}
-		def body = ['type': 'shutdown']
-		apiService.performDropletAction(apiKey, dropletId, body)
+		return apiService.performDropletAction(apiKey, dropletId, 'shutdown')
 	}
 
 	@Override
