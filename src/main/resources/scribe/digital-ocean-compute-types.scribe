@@ -1,4 +1,4 @@
-resource "container-type" "docker-digitalOcean-ubuntu-18_04" {
+resource "workload-type" "docker-digitalOcean-ubuntu-18_04" {
   code             = "docker-digitalOcean-ubuntu-18.04"
   shortName        = "ubuntu"
   name             = "Docker Ubuntu 18.04"
@@ -20,9 +20,7 @@ resource "container-type" "docker-digitalOcean-ubuntu-18_04" {
   virtualImage {
     code = "digitalocean.image.morpheus.ubuntu.18.04"
   }
-  containerPorts = [
-    { code = "ubuntu.22" }
-  ]
+  containerPorts = ["ubuntu.22"]
   provisionType {
     code = "digitalocean"
   }
@@ -31,7 +29,7 @@ resource "container-type" "docker-digitalOcean-ubuntu-18_04" {
 resource "compute-type-set" "docker-digitalOcean-ubuntu-18_04-set" {
   code          = "docker-digitalOcean-ubuntu-18.04-set"
   name          = "docker host"
-  containerType {
+  workloadType {
     code = "docker-digitalOcean-ubuntu-18.04"
   }
   computeServerType {

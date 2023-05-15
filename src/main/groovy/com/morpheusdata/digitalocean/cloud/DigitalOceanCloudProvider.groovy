@@ -13,25 +13,18 @@ import com.morpheusdata.core.ProvisioningProvider
 import com.morpheusdata.model.*
 import com.morpheusdata.request.ValidateCloudRequest
 import com.morpheusdata.response.ServiceResponse
-import groovy.json.JsonOutput
 import groovy.util.logging.Slf4j
-import org.apache.http.client.methods.HttpDelete
-import org.apache.http.client.methods.HttpGet
-import org.apache.http.client.methods.HttpPost
-import org.apache.http.entity.StringEntity
 
 @Slf4j
 class DigitalOceanCloudProvider implements CloudProvider {
 	DigitalOceanPlugin plugin
 	MorpheusContext morpheusContext
-	DigitalOceanApiService apiService
 
 	public static String LINUX_VIRTUAL_IMAGE_CODE = 'digitalOceanLinux'
 
-	DigitalOceanCloudProvider(DigitalOceanPlugin plugin, MorpheusContext context, DigitalOceanApiService apiService) {
+	DigitalOceanCloudProvider(DigitalOceanPlugin plugin, MorpheusContext context) {
 		this.plugin = plugin
 		this.morpheusContext = context
-		this.apiService = apiService ?: new DigitalOceanApiService()
 	}
 
 	@Override
@@ -257,6 +250,7 @@ class DigitalOceanCloudProvider implements CloudProvider {
 
 	@Override
 	ServiceResponse validate(Cloud zoneInfo, ValidateCloudRequest validateCloudRequest) {
+		DigitalOceanApiService apiService = new DigitalOceanApiService()
 		log.debug("validating Cloud: ${zoneInfo.code}, ${validateCloudRequest.credentialType} ${validateCloudRequest.credentialUsername} ${validateCloudRequest.credentialPassword}")
 		if (!zoneInfo.configMap.datacenter) {
 			return new ServiceResponse(success: false, msg: 'Choose a datacenter')
@@ -294,6 +288,7 @@ class DigitalOceanCloudProvider implements CloudProvider {
 
 	@Override
 	ServiceResponse initializeCloud(Cloud cloud) {
+		DigitalOceanApiService apiService = new DigitalOceanApiService()
 		ServiceResponse serviceResponse
 		log.debug("Initializing Cloud: ${cloud.code}")
 		log.debug("config: ${cloud.configMap}")
@@ -304,8 +299,8 @@ class DigitalOceanCloudProvider implements CloudProvider {
 		if (initResponse.success && initResponse.data.status == 'active') {
 			serviceResponse = new ServiceResponse(success: true, content: initResponse.content)
 
-			refreshDaily(cloud)
-			refresh(cloud)
+			refreshDaily(cloud, apiService)
+			refresh(cloud, apiService)
 
 			KeyPair keyPair = morpheusContext.cloud.findOrGenerateKeyPair(cloud.account).blockingGet()
 			if (keyPair) {
@@ -326,7 +321,8 @@ class DigitalOceanCloudProvider implements CloudProvider {
 	}
 
 	@Override
-	ServiceResponse refresh(Cloud cloud) {
+	ServiceResponse refresh(Cloud cloud, DigitalOceanApiService apiService=null) {
+		apiService = apiService ?: new DigitalOceanApiService()
 		log.debug("Short refresh cloud ${cloud.code}")
 		(new ImagesSync(plugin, cloud, apiService, true)).execute()
 		log.debug("Completed short refresh for cloud $cloud.code")
@@ -334,8 +330,10 @@ class DigitalOceanCloudProvider implements CloudProvider {
 	}
 
 	@Override
-	void refreshDaily(Cloud cloud) {
+	void refreshDaily(Cloud cloud, DigitalOceanApiService apiService=null) {
+		apiService = apiService ?: new DigitalOceanApiService()
 		log.debug("daily refresh cloud ${cloud.code}")
+		(new DatacentersSync(plugin, cloud, apiService)).execute()
 		(new SizesSync(plugin, cloud, apiService)).execute()
 		(new ImagesSync(plugin, cloud, apiService, false)).execute()
 		log.debug("Completed daily refresh for cloud ${cloud.code}")
@@ -343,11 +341,15 @@ class DigitalOceanCloudProvider implements CloudProvider {
 
 	@Override
 	ServiceResponse deleteCloud(Cloud cloudInfo) {
+		(new DatacentersSync(plugin, cloud, null)).clean()
+		(new SizesSync(plugin, cloud, null)).clean()
+		(new ImagesSync(plugin, cloud, null)).clean()
 		return new ServiceResponse(success: true)
 	}
 
 	@Override
-	ServiceResponse startServer(ComputeServer computeServer) {
+	ServiceResponse startServer(ComputeServer computeServer, DigitalOceanApiService apiService=null) {
+		apiService = apiService ?: new DigitalOceanApiService()
 		String dropletId = computeServer.externalId
 		String apiKey = plugin.getAuthConfig(computeServer.cloud).doApiKey
 		log.debug("startServer: ${dropletId}")
@@ -359,7 +361,8 @@ class DigitalOceanCloudProvider implements CloudProvider {
 	}
 
 	@Override
-	ServiceResponse stopServer(ComputeServer computeServer) {
+	ServiceResponse stopServer(ComputeServer computeServer, DigitalOceanApiService apiService=null) {
+		apiService = apiService ?: new DigitalOceanApiService()
 		String dropletId = computeServer.externalId
 		String apiKey = plugin.getAuthConfig(computeServer.cloud).doApiKey
 		log.debug("stopServer: ${dropletId}")
@@ -371,7 +374,8 @@ class DigitalOceanCloudProvider implements CloudProvider {
 	}
 
 	@Override
-	ServiceResponse deleteServer(ComputeServer computeServer) {
+	ServiceResponse deleteServer(ComputeServer computeServer, DigitalOceanApiService apiService=null) {
+		apiService = apiService ?: new DigitalOceanApiService()
 		String dropletId = computeServer.externalId
 		String apiKey = plugin.getAuthConfig(computeServer.cloud).doApiKey
 		log.debug("deleteServer: ${dropletId}")
@@ -387,7 +391,8 @@ class DigitalOceanCloudProvider implements CloudProvider {
 		}
 	}
 
-	KeyPair findOrUploadKeypair(String apiKey, String publicKey, String keyName) {
+	KeyPair findOrUploadKeypair(String apiKey, String publicKey, String keyName, DigitalOceanApiService apiService=null) {
+		apiService = apiService ?: new DigitalOceanApiService()
 		KeyPair rtn = null
 		Map match = null
 		keyName = keyName ?: 'morpheus_do_plugin_key'

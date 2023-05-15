@@ -1,5 +1,6 @@
 package com.morpheusdata.digitalocean.cloud.sync
 
+import com.morpheusdata.model.BackupProvider
 import com.morpheusdata.model.PlatformType
 import com.morpheusdata.response.ServiceResponse
 import com.morpheusdata.digitalocean.DigitalOceanPlugin
@@ -159,6 +160,11 @@ class ImagesSync {
 
 		log.debug("Have ${imagesToUpdate?.size()} to update")
 		morpheusContext.virtualImage.save(imagesToUpdate, cloud).blockingGet()
+	}
+
+	ServiceResponse clean(Cloud cloud, Map opts=[:]) {
+		// delete stuff
+		return ServiceResponse.success();
 	}
 
 }

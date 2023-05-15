@@ -83,6 +83,40 @@ class SizesSync {
 				}.onUpdate { updateList ->
 					updateMatchedPlans(updateList)
 				}.start()
+
+
+				// sizeList?.each { size ->
+				//
+				// 	ServicePlan servicePlan = existingServicePlans.find { it.code == "digitalocean.size.${size.slug}" }
+				//
+				// 	['month', 'hour'].each { priceUnit ->
+				// 		def priceSetCode = "digitalocean.size.${size.slug}.${priceUnit}"
+				//
+				// 		// Get or create the price set
+				// 		def name = "${getNameForSize(size)} - ${priceUnit.capitalize()}"
+				// 		def priceSet = priceManagerService.getOrCreatePriceSet(
+				// 			[code: priceSetCode,
+				// 			 name: name,
+				// 			 priceUnit: priceUnit,
+				// 			 type: AccountPriceSet.PRICE_SET_TYPE.fixed.toString(),
+				// 			 systemCreated: true])
+				//
+				// 		// Get or create the price
+				// 		def (price, errors) = priceManagerService.getOrCreatePrice(
+				// 			[name: name,
+				// 			 code: priceSetCode,
+				// 			 priceType: AccountPrice.PRICE_TYPE.fixed,
+				// 			 incurCharges: 'always',
+				// 			 systemCreated: true,
+				// 			 cost: new BigDecimal(size["price_${priceUnit}ly"].toString() ?: '0.0'),
+				// 			 priceUnit: priceUnit])
+				//
+				// 		priceManagerService.addToPriceSet(priceSet, price)
+				//
+				// 		// Add the set to the correct service plan
+				// 		priceManagerService.addPriceSetToPlan(servicePlan, priceSet)
+				// 	}
+				// }
 			}
 		} catch(e) {
 			log.error("Error in execute : ${e}", e)
@@ -116,6 +150,11 @@ class SizesSync {
 	def getNameForSize(sizeData) {
 		def memoryName = sizeData.memory < 1000 ? "${sizeData.memory} MB" : "${sizeData.memory.div(1024l)} GB"
 		return "${sizeData.description} ${sizeData.vcpus} CPU, ${memoryName} Memory, ${sizeData.disk} GB Storage"
+	}
+
+	ServiceResponse clean(Cloud cloud, Map opts=[:]) {
+		// delete stuff
+		return ServiceResponse.success();
 	}
 
 }

@@ -5,6 +5,7 @@ import com.morpheusdata.digitalocean.DigitalOceanApiService
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
 import com.morpheusdata.model.*
+import com.morpheusdata.model.projection.ReferenceDataSyncProjection
 import groovy.util.logging.Slf4j
 import com.morpheusdata.core.OptionSourceProvider
 
@@ -13,12 +14,10 @@ class DigitalOceanOptionSourceProvider implements OptionSourceProvider {
 
 	Plugin plugin
 	MorpheusContext morpheusContext
-	DigitalOceanApiService apiService
 
-	DigitalOceanOptionSourceProvider(Plugin plugin, MorpheusContext context, DigitalOceanApiService apiService) {
+	DigitalOceanOptionSourceProvider(Plugin plugin, MorpheusContext context) {
 		this.plugin = plugin
 		this.morpheusContext = context
-		this.apiService = apiService
 	}
 
 	@Override
@@ -47,17 +46,36 @@ class DigitalOceanOptionSourceProvider implements OptionSourceProvider {
 	}
 
 	def digitalOceanDataCenters(args) {
-		log.debug "datacenters: ${args}"
+		log.debug("datacenters: ${args}")
 		List datacenters = []
-		String apiKey = plugin.getAuthConfig(args.getAt(0) as Map).doApiKey
-		log.debug("API KEY: ${apiKey}")
-		def response = apiService.listRegions(apiKey)
-		if(response.success) {
-			datacenters = response.data
+
+		// if we know the cloud then load from cached data
+		if(args.getAt(0)?.zoneId) {
+			Long cloudId = args.getAt(0).zoneId.toLong()
+			morpheusContext.referenceData.listByCategory("digitalocean.${cloudId}.datacenter").blockingSubscribe { ReferenceDataSyncProjection refData ->
+				datacenters << [name: refData.name, value: refData.externalId]
+			}
+		}
+
+		// if cloud isn't created or hasn't cached the datacenters yet, load directly from the API
+		if(datacenters.size() == 0) {
+			log.debug("Datacenters not cached, loading from API")
+			DigitalOceanApiService apiService = new DigitalOceanApiService()
+
+			String apiKey = plugin.getAuthConfig(args.getAt(0) as Map).doApiKey
+			if(apiKey) {
+				def response = apiService.listRegions(apiKey)
+				if(response.success) {
+					datacenters = response.data?.collect { [name: it.name, value: it.slug] }
+				}
+			} else {
+				log.debug("API key not supplied, failed to load datacenters")
+			}
+
 		}
 
 		log.debug("listDatacenters regions: $datacenters")
-		def rtn = datacenters?.collect { [name: it.name, value: it.slug] }?.sort { it.name } ?: []
+		def rtn = datacenters?.sort { it.name } ?: []
 
 		return rtn
 	}

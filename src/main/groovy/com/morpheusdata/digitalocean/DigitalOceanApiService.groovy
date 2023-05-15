@@ -24,7 +24,7 @@ class DigitalOceanApiService {
 
 	DigitalOceanApiService() {
 		// API Client, throttled to prevent hitting digital ocean rate limit.
-		this.apiClient = new HttpApiClient(throttleRate:500L)
+		this.apiClient = new HttpApiClient(throttleRate:500l)
 	}
 
 	ServiceResponse getAccount(String apiKey) {
@@ -398,6 +398,25 @@ class DigitalOceanApiService {
 				}
 			}
 			rtn = apiClient.callJsonApi(DIGITAL_OCEAN_ENDPOINT, path, requestOptions, requestMethod)
+
+			// handle occasional "API failed to respond" issue, might be a local network issue or slow API, just try a again a few times
+			Integer attempts = 1;
+			if(rtn.success == false) {
+				Boolean noResponse = (rtn.success == false && rtn.getError()?.toLowerCase()?.contains("failed to respond"))
+				while(noResponse == true && attempts <= 5) {
+					log.debug("API failed to respond, attempting to try again (attempt $attempts)")
+					rtn = apiClient.callJsonApi(DIGITAL_OCEAN_ENDPOINT, path, requestOptions, requestMethod)
+					noResponse = (rtn.success == false && rtn.getError()?.toLowerCase()?.contains("failed to respond"))
+					if(noResponse == true) {
+						sleep(500l)
+						if(attempts == 5) {
+							log.debug("API failed to respond after ${attempts} attempts, returning failed API response.")
+						}
+					}
+					attempts++
+				}
+			}
+
 		} catch(e) {
 			log.error("error during api request {}: {}", path, e, e)
 		}

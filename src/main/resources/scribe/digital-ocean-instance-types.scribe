@@ -44,8 +44,7 @@ resource "instance-type" "digitalocean" {
     code = "digitalocean"
   }
   optionTypes = [
-    { code = "instanceType.exposePorts" },
-    { code = "instanceType.digitalOcean.imageId" }
+    "instanceType.exposePorts"
   ]
 }
 
@@ -60,7 +59,7 @@ resource "workload-type" "digitalocean-1_0" {
   category         = "digitalocean"
   statTypeCode     = "vm"
   logTypeCode      = "digitalocean"
-  checkTypeCode    = "containerCheck"
+  checkTypeCode    = "vmCheck"
   serverType       = "vm"
   mountPoint       = "/data"
   provisionType {

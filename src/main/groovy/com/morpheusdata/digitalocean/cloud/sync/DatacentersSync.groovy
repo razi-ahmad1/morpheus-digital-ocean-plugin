@@ -4,11 +4,13 @@ import com.morpheusdata.digitalocean.DigitalOceanPlugin
 import com.morpheusdata.digitalocean.DigitalOceanApiService
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.util.SyncTask
+import com.morpheusdata.model.BackupProvider
 import com.morpheusdata.model.Cloud
 import com.morpheusdata.model.ReferenceData
 import com.morpheusdata.model.ServicePlan
 import com.morpheusdata.model.VirtualImage
 import com.morpheusdata.model.projection.ReferenceDataSyncProjection
+import com.morpheusdata.response.ServiceResponse
 import groovy.util.logging.Slf4j
 import io.reactivex.Observable
 
@@ -20,8 +22,6 @@ class DatacentersSync {
 	DigitalOceanApiService apiService
 	DigitalOceanPlugin plugin
 
-	public static String DIGITAL_OCEAN_CAT = 'digitalocean.datacenter'
-	
 	public DatacentersSync(DigitalOceanPlugin plugin, Cloud cloud, DigitalOceanApiService apiService) {
 		this.plugin = plugin
 		this.cloud = cloud
@@ -34,14 +34,14 @@ class DatacentersSync {
 		try {
 			def datacenters = listDatacenters()
 			if(datacenters?.size() > 0) {
-				Observable<ReferenceDataSyncProjection> domainReferenceData = morpheusContext.cloud.listReferenceDataByCategory(cloud, DIGITAL_OCEAN_CAT)
+				Observable<ReferenceDataSyncProjection> domainReferenceData = morpheusContext.referenceData.listByCategory(generateCategoryForCloud(cloud))
 				SyncTask<ReferenceDataSyncProjection, ReferenceData, ReferenceData> syncTask = new SyncTask(domainReferenceData, datacenters)
 				syncTask.addMatchFunction { ReferenceDataSyncProjection projection, ReferenceData apiDatacenter ->
 					projection.externalId == apiDatacenter.keyValue
 				}.onDelete { List<ReferenceDataSyncProjection> deleteList ->
-					morpheusContext.cloud.remove(deleteList)
+					morpheusContext.referenceData.remove(deleteList)
 				}.onAdd { createList ->
-					morpheusContext.cloud.create(createList, cloud, DIGITAL_OCEAN_CAT).blockingGet()
+					morpheusContext.referenceData.create(createList).blockingGet()
 				}.withLoadObjectDetails { List<SyncTask.UpdateItemDto<ReferenceDataSyncProjection, ReferenceData>> updateItems ->
 					Map<Long, SyncTask.UpdateItemDto<ReferenceDataSyncProjection, Map>> updateItemMap = updateItems.collectEntries { [(it.existingItem.id): it]}
 					morpheusContext.cloud.listReferenceDataById(updateItems.collect { it.existingItem.id } as Collection<Long>).map {ReferenceData datacenter ->
@@ -64,13 +64,14 @@ class DatacentersSync {
 		def response = apiService.listRegions(apiKey)
 		if(response.success) {
 			List regions = response.data
+			def category = generateCategoryForCloud(cloud)
 
 			log.debug("regions: $regions")
 			regions.each { it ->
 				if(it.available == true ) {
 					Map props = [
-						code      : "digitalocean.datacenter.${it.slug}",
-						category  : "digitalocean.datacenter",
+						code      : "${category}.${it.slug}",
+						category  : category,
 						name      : it.name,
 						keyValue  : it.slug,
 						externalId: it.slug,
@@ -84,7 +85,20 @@ class DatacentersSync {
 		}
 
 		log.debug("listDatacenters regions: $datacenters")
-		datacenters
+		return datacenters
+	}
+
+	String generateCategoryForCloud(Cloud cloud) {
+		return "digitalocean.${cloud.id}.datacenter"
+	}
+
+	ServiceResponse clean(Cloud cloud, Map opts=[:]) {
+		def removeItems = []
+		morpheusContext.referenceData.listByCategory(generateCategoryForCloud(cloud)).blockingSubscribe {
+			removeItems << []
+		}
+		morpheusContext.referenceData.remove(removeItems)
+		return ServiceResponse.success();
 	}
 
 }

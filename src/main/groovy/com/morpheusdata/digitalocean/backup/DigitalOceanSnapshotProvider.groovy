@@ -1,14 +1,10 @@
 package com.morpheusdata.digitalocean.backup
 
 import com.morpheusdata.core.util.ComputeUtility
-import com.morpheusdata.digitalocean.DigitalOceanPlugin
 import com.morpheusdata.digitalocean.DigitalOceanApiService
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
 import com.morpheusdata.core.backup.AbstractMorpheusBackupTypeProvider
-import com.morpheusdata.core.backup.BackupTypeProvider
-import com.morpheusdata.core.backup.BackupExecutionProvider
-import com.morpheusdata.core.backup.BackupRestoreProvider
 import com.morpheusdata.core.backup.response.BackupExecutionResponse
 import com.morpheusdata.core.backup.response.BackupRestoreResponse
 import com.morpheusdata.core.backup.util.BackupStatusUtility
@@ -23,16 +19,12 @@ import com.morpheusdata.model.Instance
 import com.morpheusdata.model.OptionType
 import com.morpheusdata.response.ServiceResponse
 import groovy.util.logging.Slf4j
-import com.morpheusdata.digitalocean.DigitalOceanApiService
 
 @Slf4j
 class DigitalOceanSnapshotProvider extends AbstractMorpheusBackupTypeProvider {
 
-	DigitalOceanApiService apiService
-
 	DigitalOceanSnapshotProvider(Plugin plugin, MorpheusContext context) {
 		super(plugin, context)
-		apiService = new DigitalOceanApiService()
 	}
 
 	@Override
@@ -117,6 +109,8 @@ class DigitalOceanSnapshotProvider extends AbstractMorpheusBackupTypeProvider {
 
 	@Override
 	ServiceResponse executeBackup(Backup backup, BackupResult backupResult, Map executionConfig, Cloud cloud, ComputeServer computeServer, Map opts) {
+		DigitalOceanApiService apiService = new DigitalOceanApiService()
+
 		log.debug("Executing backup {} with result {}", backup.id, backupResult.id)
 		ServiceResponse<BackupExecutionResponse> rtn = ServiceResponse.prepare(new BackupExecutionResponse(backupResult))
 
@@ -156,6 +150,7 @@ class DigitalOceanSnapshotProvider extends AbstractMorpheusBackupTypeProvider {
 
 	@Override
 	ServiceResponse refreshBackupResult(BackupResult backupResult) {
+		DigitalOceanApiService apiService = new DigitalOceanApiService()
 		log.debug("refreshing backup result {}", backupResult.id)
 		ServiceResponse<BackupExecutionResponse> rtn = ServiceResponse.prepare(new BackupExecutionResponse(backupResult))
 		try {
@@ -178,7 +173,7 @@ class DigitalOceanSnapshotProvider extends AbstractMorpheusBackupTypeProvider {
 							log.debug("snapshot complete ${actionId}")
 							if(actionResults.success && actionResults.data){
 								def action = actionResults.data
-								def snapshotResp = getSnapshot(cloud, computeServer, snapshotName)
+								def snapshotResp = getSnapshot(cloud, computeServer, snapshotName, apiService)
 								def snapshot = snapshotResp.data
 								log.debug("Snapshot details: ${snapshot}")
 
@@ -249,7 +244,8 @@ class DigitalOceanSnapshotProvider extends AbstractMorpheusBackupTypeProvider {
 		return rtn
 	}
 
-	ServiceResponse getSnapshot(Cloud cloud, ComputeServer computeServer, String snapshotName){
+	ServiceResponse getSnapshot(Cloud cloud, ComputeServer computeServer, String snapshotName, DigitalOceanApiService apiService=null){
+		apiService = apiService ?: new DigitalOceanApiService()
 		def rtn = ServiceResponse.prepare()
 		String apiKey = plugin.getAuthConfig(cloud).doApiKey
 		def dropletId = computeServer.externalId
@@ -269,6 +265,7 @@ class DigitalOceanSnapshotProvider extends AbstractMorpheusBackupTypeProvider {
 
 	@Override
 	ServiceResponse deleteBackupResult(BackupResult backupResult, Map opts) {
+		DigitalOceanApiService apiService = new DigitalOceanApiService()
 		log.debug("Delete backup result {}", backupResult.id)
 		ServiceResponse rtn = ServiceResponse.prepare()
 		try {
@@ -340,6 +337,7 @@ class DigitalOceanSnapshotProvider extends AbstractMorpheusBackupTypeProvider {
 
 	@Override
 	ServiceResponse restoreBackup(BackupRestore backupRestore, BackupResult backupResult, Backup backup, Map opts) {
+		DigitalOceanApiService apiService = new DigitalOceanApiService()
 		log.debug("restoreBackup {}", backupResult)
 		ServiceResponse rtn = ServiceResponse.prepare(new BackupRestoreResponse(backupRestore))
 		Boolean doUpdates
@@ -385,6 +383,7 @@ class DigitalOceanSnapshotProvider extends AbstractMorpheusBackupTypeProvider {
 
 	@Override
 	ServiceResponse refreshBackupRestoreResult(BackupRestore backupRestore, BackupResult backupResult) {
+		DigitalOceanApiService apiService = new DigitalOceanApiService()
 		log.debug("syncBackupRestoreResult restore: {}", restore)
 		ServiceResponse<BackupRestoreResponse> rtn = ServiceResponse.prepare(new BackupRestoreResponse(backupRestore))
 		def actionId = backupRestore.externalStatusRef

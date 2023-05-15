@@ -24,11 +24,10 @@ class DigitalOceanPlugin extends Plugin {
 
 		// shared instance of the api service for the all providers to ensure the
 		// api throttle rate is shared
-		def apiService = new DigitalOceanApiService()
 
-		DigitalOceanCloudProvider cloudProvider = new DigitalOceanCloudProvider(this, morpheus, apiService)
-		DigitalOceanProvisionProvider provisionProvider = new DigitalOceanProvisionProvider(this, morpheus, apiService)
-		DigitalOceanOptionSourceProvider optionSourceProvider = new DigitalOceanOptionSourceProvider(this, morpheus, apiService)
+		DigitalOceanCloudProvider cloudProvider = new DigitalOceanCloudProvider(this, morpheus)
+		DigitalOceanProvisionProvider provisionProvider = new DigitalOceanProvisionProvider(this, morpheus)
+		DigitalOceanOptionSourceProvider optionSourceProvider = new DigitalOceanOptionSourceProvider(this, morpheus)
 		pluginProviders.put(provisionProvider.code, provisionProvider)
 		pluginProviders.put(cloudProvider.code, cloudProvider)
 		pluginProviders.put(optionSourceProvider.code, optionSourceProvider)
@@ -39,6 +38,7 @@ class DigitalOceanPlugin extends Plugin {
 
 	@Override
 	void onDestroy() {
+
 	}
 
 	MorpheusContext getMorpheusContext() {

@@ -12,6 +12,7 @@ import com.morpheusdata.model.ComputeTypeLayout
 import com.morpheusdata.model.ComputeTypeSet
 import com.morpheusdata.model.ContainerType
 import com.morpheusdata.model.HostType
+import com.morpheusdata.model.Icon
 import com.morpheusdata.model.ImageType
 import com.morpheusdata.model.Instance
 import com.morpheusdata.model.OptionType
@@ -37,13 +38,17 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 	MorpheusContext morpheusContext
 	private static final String DIGITAL_OCEAN_ENDPOINT = 'https://api.digitalocean.com'
 	private static final String UBUNTU_VIRTUAL_IMAGE_CODE = 'digitalocean.image.morpheus.ubuntu.18.04'
-	DigitalOceanApiService apiService
 
-	DigitalOceanProvisionProvider(DigitalOceanPlugin plugin, MorpheusContext morpheusContext, DigitalOceanApiService apiService) {
+	DigitalOceanProvisionProvider(DigitalOceanPlugin plugin, MorpheusContext morpheusContext) {
 		this.plugin = plugin
 		this.morpheusContext = morpheusContext
-		this.apiService = apiService ?: new DigitalOceanApiService()
 	}
+
+	@Override
+	public Icon getCircularIcon() {
+		return new Icon(path:"digitalocean-circle.svg", darkPath: "digitalocean-circle.svg")
+	}
+
 
 	@Override
 	ServiceResponse createWorkloadResources(Workload workload, Map opts) {
@@ -154,8 +159,87 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 				required: false,
 				editable: false,
 				helpTextI18nCode: "gomorpheus.help.deployFolder"
+			),
+			new OptionType(
+				code: "instanceType.digitalOcean.statTypeCode",
+				inputType: OptionType.InputType.HIDDEN,
+				name: "statTypeCode",
+				category: "provisionType.digitalOcean",
+				fieldName: "statTypeCode",
+				fieldLabel: "Stat Type",
+				fieldContext: "containerType",
+				fieldGroup: "default",
+				required: false,
+				enabled: true,
+				editable: false,
+				global: false,
+				placeHolder: null,
+				helpBlock: "",
+				defaultValue: "vm",
+				custom: false,
+				displayOrder: 100,
+				fieldClass: null
+			),
+			new OptionType(
+				code: "instanceType.digitalOcean.logTypeCode",
+				inputType: OptionType.InputType.HIDDEN,
+				name: "logTypeCode",
+				category: "provisionType.digitalOcean",
+				fieldName: "logTypeCode",
+				fieldLabel: "Log Type",
+				fieldContext: "containerType",
+				fieldGroup: "default",
+				required: false,
+				enabled: true,
+				editable: false,
+				global: false,
+				placeHolder: null,
+				helpBlock: "",
+				defaultValue: "vm",
+				custom: false,
+				displayOrder: 101,
+				fieldClass: null
+			),
+			new OptionType(
+				code: "instanceType.digitalOcean.showServerLogs",
+				inputType: OptionType.InputType.HIDDEN,
+				name: "showServerLogs",
+				category: "provisionType.digitalOcean",
+				fieldName: "showServerLogs",
+				fieldLabel: "Show Server Logs",
+				fieldContext: "containerType",
+				fieldGroup: "default",
+				required: false,
+				enabled: true,
+				editable: false,
+				global: false,
+				placeHolder: null,
+				helpBlock: "",
+				defaultValue: "true",
+				custom: false,
+				displayOrder: 102,
+				fieldClass: null
+			),
+			new OptionType(
+				code: "instanceType.digitalOcean.serverType",
+				inputType: OptionType.InputType.HIDDEN,
+				name: "serverType",
+				category: "provisionType.digitalOcean",
+				fieldName: "serverType",
+				fieldLabel: "Server Type",
+				fieldContext: "containerType",
+				fieldGroup: "default",
+				required: false,
+				enabled: true,
+				editable: false,
+				global: false,
+				placeHolder: null,
+				helpBlock: "",
+				defaultValue: "vm",
+				custom: false,
+				displayOrder: 103,
+				fieldClass: null
 			)
-
 		]
 
 		return options
@@ -211,7 +295,7 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 	@Override
 	String getName() {
-		return 'Digital Ocean'
+		return 'DigitalOcean'
 	}
 
 	@Override
@@ -285,6 +369,7 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 	@Override
 	ServiceResponse<WorkloadResponse> runWorkload(Workload workload, WorkloadRequest workloadRequest, Map opts) {
+		DigitalOceanApiService apiService = new DigitalOceanApiService()
 		log.debug("runWorkload: ${workload.configs} ${opts}")
 		def containerConfig = new groovy.json.JsonSlurper().parseText(workload.configs ?: '{}')
 		ComputeServer server = workload.server
@@ -393,12 +478,13 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 	@Override
 	ServiceResponse finalizeWorkload(Workload workload) {
+		DigitalOceanApiService apiService = new DigitalOceanApiService()
 		ServiceResponse rtn = ServiceResponse.prepare()
 		log.debug("finalizeWorkload: ${workload?.id}")
 		try {
 			ComputeServer server = workload.server
 			Cloud cloud = server.cloud
-			def serverDetails = getServerDetails(server)
+			def serverDetails = getServerDetails(server, apiService)
 
 			// update IP address if necessary
 			if(serverDetails.success == true && serverDetails.data.publicIp) {
@@ -460,6 +546,8 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 	@Override
 	ServiceResponse<HostResponse> runHost(ComputeServer server, HostRequest hostRequest, Map opts) {
+		DigitalOceanApiService apiService = new DigitalOceanApiService()
+
 		log.debug("runHost: ${server} ${hostRequest} ${opts}")
 
 		String apiKey = plugin.getAuthConfig(server.cloud).doApiKey
@@ -468,7 +556,7 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 		}
 		
 		// sshKeys needed?
-//		opts.sshKeys = getKeyList(server.cloud, config.publicKeyId)
+		// opts.sshKeys = getKeyList(server.cloud, config.publicKeyId)
 
 		def rtn = [success:false]
 		def found = false
@@ -522,9 +610,11 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 	@Override
 	ServiceResponse<HostResponse> waitForHost(ComputeServer server) {
+		DigitalOceanApiService apiService = new DigitalOceanApiService()
+
 		log.debug("waitForHost: ${server}")
 		try {
-			ServiceResponse<WorkloadResponse> statusResults = getServerDetails(server)
+			ServiceResponse<WorkloadResponse> statusResults = getServerDetails(server, apiService)
 			WorkloadResponse workloadResponse = statusResults.data
 			HostResponse hostResponse = workloadResponseToHostResponse(workloadResponse)
 			return new ServiceResponse<HostResponse>(statusResults.success, statusResults.msg, statusResults.errors, hostResponse)
@@ -536,11 +626,12 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 	@Override
 	ServiceResponse finalizeHost(ComputeServer server) {
+		DigitalOceanApiService apiService = new DigitalOceanApiService()
 		ServiceResponse rtn = ServiceResponse.prepare()
 		log.debug("finalizeHost: ${server?.id}")
 		try {
 			Cloud cloud = server.cloud
-			def serverDetails = getServerDetails(server)
+			def serverDetails = getServerDetails(server, apiService)
 
 			// update IP address if necessary
 			if(serverDetails.success == true && serverDetails.data.publicIp) {
@@ -572,17 +663,20 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 	@Override
 	ServiceResponse resizeServer(ComputeServer server, ResizeRequest resizeRequest, Map opts) {
+		DigitalOceanApiService apiService = new DigitalOceanApiService()
 		log.debug("resizeServer: ${server} ${resizeRequest} ${opts}")
-		internalResizeServer(server, resizeRequest)
+		internalResizeServer(server, resizeRequest, apiService)
 	}
 
 	@Override
 	ServiceResponse resizeWorkload(Instance instance, Workload workload, ResizeRequest resizeRequest, Map opts) {
+		DigitalOceanApiService apiService = new DigitalOceanApiService()
 		log.debug("resizeWorkload: ${instance} ${workload} ${resizeRequest} ${opts}")
-		internalResizeServer(workload.server, resizeRequest)
+		internalResizeServer(workload.server, resizeRequest, apiService)
 	}
 
-	private ServiceResponse internalResizeServer(ComputeServer server, ResizeRequest resizeRequest) {
+	private ServiceResponse internalResizeServer(ComputeServer server, ResizeRequest resizeRequest, DigitalOceanApiService apiService=null) {
+		apiService = apiService ?: new DigitalOceanApiService()
 		log.debug("internalResizeServer: ${server} ${resizeRequest}")
 		ServiceResponse rtn = ServiceResponse.success()
 		try {
@@ -609,7 +703,8 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 	}
 
 	@Override
-	ServiceResponse<WorkloadResponse> stopWorkload(Workload workload) {
+	ServiceResponse<WorkloadResponse> stopWorkload(Workload workload, DigitalOceanApiService apiService=null) {
+		apiService = apiService ?: new DigitalOceanApiService()
 		String dropletId = workload.server.externalId
 		String apiKey = plugin.getAuthConfig(workload.server.cloud).doApiKey
 		log.debug("stopWorkload: ${dropletId}")
@@ -622,12 +717,13 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 		if (response.success) {
 			return apiService.checkActionComplete(apiKey, response.data.id.toString())
 		} else {
-			powerOffServer(apiKey, dropletId)
+			powerOffServer(apiKey, dropletId, apiService)
 		}
 	}
 
 	@Override
-	ServiceResponse<WorkloadResponse> startWorkload(Workload workload) {
+	ServiceResponse<WorkloadResponse> startWorkload(Workload workload, DigitalOceanApiService apiService=null) {
+		apiService = apiService ?: new DigitalOceanApiService()
 		String dropletId = workload.server.externalId
 		String apiKey = plugin.getAuthConfig(workload.server.cloud).doApiKey
 		log.debug("startWorkload: ${dropletId}")
@@ -640,11 +736,13 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 	@Override
 	ServiceResponse restartWorkload(Workload workload) {
+		DigitalOceanApiService apiService = new DigitalOceanApiService()
+
 		ServiceResponse rtn = ServiceResponse.prepare()
 		log.debug("restartWorkload: ${workload.id}")
-		ServiceResponse stopResult = stopWorkload(workload)
+		ServiceResponse stopResult = stopWorkload(workload, apiService)
 		if (stopResult.success) {
-			rtn = startWorkload(workload)
+			rtn = startWorkload(workload, apiService)
 		} else {
 			rtn = stopResult
 		}
@@ -654,6 +752,8 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 	@Override
 	ServiceResponse removeWorkload(Workload workload, Map opts) {
+		DigitalOceanApiService apiService = new DigitalOceanApiService()
+
 		String dropletId = workload.server.externalId
 		log.debug("removeWorkload: ${dropletId}")
 		if (!dropletId) {
@@ -676,7 +776,8 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 	}
 
 	@Override
-	ServiceResponse<WorkloadResponse> getServerDetails(ComputeServer server) {
+	ServiceResponse<WorkloadResponse> getServerDetails(ComputeServer server, DigitalOceanApiService apiService=null) {
+		apiService = apiService ?: new DigitalOceanApiService()
 		log.debug("getServerDetails: $server.id")
 		ServiceResponse rtn = ServiceResponse.prepare(new WorkloadResponse())
 		String apiKey = plugin.getAuthConfig(server.cloud).doApiKey
@@ -706,7 +807,8 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 		return rtn
 	}
 
-	ServiceResponse<WorkloadResponse> powerOffServer(String apiKey, String dropletId) {
+	ServiceResponse<WorkloadResponse> powerOffServer(String apiKey, String dropletId, DigitalOceanApiService apiService=null) {
+		apiService = apiService ?: new DigitalOceanApiService()
 		log.debug("powerOffServer: $dropletId")
 		return apiService.performDropletAction(apiKey, dropletId, 'power_off')
 	}
