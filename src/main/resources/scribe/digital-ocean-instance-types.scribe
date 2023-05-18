@@ -40,9 +40,7 @@ resource "instance-type" "digitalocean" {
   environmentPrefix    = "OCEAN"
   backupType           = "digitaloceanSnapshot"
   provisionSelectType  = "zone"
-  provisionType {
-    code = "digitalocean"
-  }
+  provisionType = "digitalocean"
   optionTypes = [
     "instanceType.exposePorts"
   ]
@@ -62,20 +60,14 @@ resource "workload-type" "digitalocean-1_0" {
   checkTypeCode    = "vmCheck"
   serverType       = "vm"
   mountPoint       = "/data"
-  provisionType {
-    code = "digitalocean"
-  }
-  actions = [
-    { code = "generic-remove-node" }
-  ]
+  provisionType = "digitalocean"
+  actions = ["generic-remove-node"]
   backupType = "digitaloceanSnapshot"
 }
 
 resource "workload-type-set" "digitalocean-1_0-set" {
   code          = "digitalocean-1.0-set"
-  containerType {
-    code = "digitalocean-1.0"
-  }
+  workloadType = workload-type.digitalocean-1_0
   priorityOrder  = 0
   dynamicCount   = true
   containerCount = 1
@@ -87,35 +79,23 @@ resource "instance-type-layout" "digitalocean-1_0-single" {
   sortOrder       = 0
   instanceVersion = "1.0"
   description     = "This will provision a single process with no redundancy"
-  instanceType {
-    code = "digitalocean"
-  }
+  instanceType = instance-type.digitalocean
   serverCount = 1
   portCount   = 1
   enabled     = true
   creatable   = true
   containers  = [
-    { code = "digitalocean-1.0-set" }
+    workload-type-set.digitalocean-1_0-set
   ]
-  actions = [
-    { code = "generic-add-node" }
-  ]
+  actions = ["generic-add-node"]
   optionTypes   = []
-  provisionType {
-    code = "digitalocean"
-  }
+  provisionType = "digitalocean"
 }
 
 resource "scale-action" "digitalocean-1_0-single" {
   code      = "digitalocean-1.0-single"
   scaleType = "action"
-  layout {
-    code = "digitalocean-1.0-single"
-  }
-  upAction {
-    code = "generic-add-node"
-  }
-  downAction {
-    code = "generic-remove-node"
-  }
+  layout = instance-type-layout.digitalocean-1_0-single
+  upAction = "generic-add-node"
+  downAction = "generic-remove-node"
 }

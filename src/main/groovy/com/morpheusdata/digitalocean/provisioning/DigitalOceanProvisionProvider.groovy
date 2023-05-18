@@ -88,14 +88,6 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 	@Override
 	Collection<ComputeTypeLayout> getComputeTypeLayouts() {
 		List<ComputeTypeLayout> layouts = []
-		layouts << this.morpheusContext.getComputeTypeLayoutFactoryService().buildDockerLayout(
-				'docker-digitalOcean-ubuntu-18.04',
-				'18.04',
-				this.provisionTypeCode,
-			'digitalOceanLinux',
-				UBUNTU_VIRTUAL_IMAGE_CODE
-		).blockingGet()
-
 		return layouts
 	}
 

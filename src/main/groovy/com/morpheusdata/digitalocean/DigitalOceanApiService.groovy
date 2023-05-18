@@ -154,8 +154,9 @@ class DigitalOceanApiService {
 	ServiceResponse createDroplet(String apiKey, Map dropletConfig) {
 		ServiceResponse rtn = ServiceResponse.prepare()
 		String apiPath = "/v2/droplets"
-
+		log.debug("createDroplet config: {}", dropletConfig)
 		ServiceResponse response = internalPostApiRequest(apiKey, apiPath, dropletConfig)
+		log.debug("createDroplet response: {}", response)
 		if(response.success) {
 			rtn.success = true
 			rtn.results = response.data

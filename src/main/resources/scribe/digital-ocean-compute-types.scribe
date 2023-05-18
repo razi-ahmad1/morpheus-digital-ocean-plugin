@@ -1,3 +1,33 @@
+resource "compute-server-type" "digital-ocean-linux" {
+  code = "digitalOceanLinux" 
+  name = "DigitalOcean Docker Host" 
+  description = "" 
+  platform = "linux" 
+  nodeType = "morpheus-node"
+  enabled = true 
+  selectable = false 
+  externalDelete = true 
+  managed = true 
+  controlPower = true 
+  controlSuspend = false 
+  creatable = false 
+  computeService = "digitalOceanComputeService"
+  displayOrder =  16 
+  hasAutomation = true
+  reconfigureSupported =  true
+  hasAgent = true 
+  containerHypervisor = true 
+  bareMetalHost = false 
+  vmHypervisor = false
+  agentType = "node" 
+  containerEngine = "docker"
+  viewSet = "docker"
+  containerMode = "docker"
+  isEmbedded =  true
+  provisionType = "digitalocean"
+  computeType = "docker-host"
+}
+
 resource "workload-type" "docker-digitalOcean-ubuntu-18_04" {
   code             = "docker-digitalOcean-ubuntu-18.04"
   shortName        = "ubuntu"
@@ -17,24 +47,16 @@ resource "workload-type" "docker-digitalOcean-ubuntu-18_04" {
   serverType       = "vm"
   providerType     = "digitalocean"
   checkTypeCode    = "vmCheck"
-  virtualImage {
-    code = "digitalocean.image.morpheus.ubuntu.18.04"
-  }
+  virtualImage = virtual-image.digitalocean-image-morpheus-ubuntu-18_04
   containerPorts = ["ubuntu.22"]
-  provisionType {
-    code = "digitalocean"
-  }
+  provisionType = "digitalocean"
 }
 
 resource "compute-type-set" "docker-digitalOcean-ubuntu-18_04-set" {
   code          = "docker-digitalOcean-ubuntu-18.04-set"
   name          = "docker host"
-  workloadType {
-    code = "docker-digitalOcean-ubuntu-18.04"
-  }
-  computeServerType {
-    code = "digitalOceanLinux"
-  }
+  workloadType = workload-type.docker-digitalOcean-ubuntu-18_04
+  computeServerType = compute-server-types.digital-ocean-linux
   category                = "ubuntu"
   priorityOrder           = 0
   dynamicCount            = true
@@ -47,23 +69,17 @@ resource "compute-type-set" "docker-digitalOcean-ubuntu-18_04-set" {
 
 resource "compute-type-layout" "docker-digitalOcean-ubuntu-18_04-single" {
   code           = "docker-digitalOcean-ubuntu-18.04-single"
-  name           = "Digital Ocean Docker Host"
+  name           = "Digital Ocean Docker Host (Ubuntu 18.04)"
   sortOrder      = 5
   computeVersion = "18.04"
   description    = "This will provision a single docker host vm in digitalOcean"
-  type {
-    code = "digitalOceanLinux"
-  }
+  type = compute-server-types.digital-ocean-linux
   serverCount       = 1
   memoryRequirement = 1024 * 1024 * 1024
   hasAutoScale      = true
-  groupType {
-    code = "docker-cluster"
-  }
+  groupType = "docker-cluster"
   computeServers = [
-    { code = "docker-digitalOcean-ubuntu-18.04-set" }
+    compute-type-set.docker-digitalOcean-ubuntu-18_04-set
   ]
-  provisionType {
-    code = "digitalocean"
-  }
+  provisionType = "digitalocean"
 }

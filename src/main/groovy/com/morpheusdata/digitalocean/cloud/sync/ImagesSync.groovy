@@ -94,6 +94,7 @@ class ImagesSync {
 				Map props = [
 					name       : "${it.distribution} ${it.name}",
 					externalId : it.id,
+					internalId : it.slug,
 					code       : "${imageCodeBase}${userImages ? ".${cloud.code}.${it.id}" : ".${it.id}"}",
 					category   : "${imageCodeBase}${userImages ? ".${cloud.code}" : ""}",
 					imageType  : ImageType.qcow2,

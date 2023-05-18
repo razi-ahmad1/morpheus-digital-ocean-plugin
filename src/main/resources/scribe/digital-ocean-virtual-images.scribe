@@ -10,9 +10,7 @@ resource "virtual-image" "digitalocean-image-morpheus-ubuntu-14_04" {
   computeServerImage = true
   isCloudInit        = true
   externalId         = "ubuntu-14-04-x64"
-  osType {
-    code = "ubuntu.14.04.64"
-  }
+  osType             = "ubuntu.14.04.64"
 }
 
 resource "virtual-image" "digitalocean-image-morpheus-ubuntu-16_04" {
@@ -27,9 +25,7 @@ resource "virtual-image" "digitalocean-image-morpheus-ubuntu-16_04" {
   computeServerImage = true
   isCloudInit        = true
   externalId         = "ubuntu-16-04-x64"
-  osType {
-    code = "ubuntu.16.04.64"
-  }
+  osType             = "ubuntu.16.04.64"
 }
 
 resource "virtual-image" "digitalocean-image-morpheus-ubuntu-18_04" {
@@ -44,9 +40,7 @@ resource "virtual-image" "digitalocean-image-morpheus-ubuntu-18_04" {
   computeServerImage = true
   isCloudInit        = true
   externalId         = "ubuntu-18-04-x64"
-  osType {
-    code = "ubuntu.18.04.64"
-  }
+  osType             = "ubuntu.18.04.64"
 }
 
 resource "virtual-image" "digitalocean-image-morpheus-ubuntu-20_04" {
@@ -61,9 +55,7 @@ resource "virtual-image" "digitalocean-image-morpheus-ubuntu-20_04" {
   computeServerImage = true
   isCloudInit        = true
   externalId         = "ubuntu-20-04-x64"
-  osType {
-    code = "ubuntu.20.04.64"
-  }
+  osType             = "ubuntu.20.04.64"
 }
 
 resource "virtual-image" "digitalocean-image-morpheus-ubuntu-22_04" {
@@ -78,9 +70,7 @@ resource "virtual-image" "digitalocean-image-morpheus-ubuntu-22_04" {
   computeServerImage = true
   isCloudInit        = true
   externalId         = "ubuntu-22-04-x64"
-  osType {
-    code = "ubuntu.22.04.64"
-  }
+  osType             = "ubuntu.22.04.64"
 }
 
 resource "virtual-image" "digitalocean-image-morpheus-debian-9" {
@@ -95,9 +85,7 @@ resource "virtual-image" "digitalocean-image-morpheus-debian-9" {
   computeServerImage = true
   isCloudInit        = true
   externalId         = "debian-9-x64"
-  osType {
-    code = "debian.9.13.64"
-  }
+  osType             = "debian.9.13.64"
 }
 
 resource "virtual-image" "digitalocean-image-morpheus-debian-10" {
@@ -112,9 +100,7 @@ resource "virtual-image" "digitalocean-image-morpheus-debian-10" {
   computeServerImage = true
   isCloudInit        = true
   externalId         = "debian-10-x64"
-  osType {
-    code = "debian.10.64"
-  }
+  osType             = "debian.10.64"
 }
 
 resource "virtual-image" "digitalocean-image-morpheus-debian-11" {
@@ -129,9 +115,7 @@ resource "virtual-image" "digitalocean-image-morpheus-debian-11" {
   computeServerImage = true
   isCloudInit        = true
   externalId         = "debian-11-x64"
-  osType {
-    code = "debian.11.64"
-  }
+  osType             = "debian.11.64"
 }
 
 resource "virtual-image" "digitalocean-image-morpheus-centos-7_3" {
@@ -146,9 +130,7 @@ resource "virtual-image" "digitalocean-image-morpheus-centos-7_3" {
   computeServerImage = true
   isCloudInit        = true
   externalId         = "centos-7-x64"
-  osType {
-    code = "cent.7.64"
-  }
+  osType             = "cent.7.64"
 }
 
 resource "virtual-image" "digitalocean-image-morpheus-centos-7" {
@@ -163,9 +145,7 @@ resource "virtual-image" "digitalocean-image-morpheus-centos-7" {
   computeServerImage = true
   isCloudInit        = true
   externalId         = "centos-7-x64"
-  osType {
-    code = "cent.7.64"
-  }
+  osType             = "cent.7.64"
 }
 
 resource "virtual-image" "digitalocean-image-morpheus-centos-8-stream" {
@@ -180,9 +160,7 @@ resource "virtual-image" "digitalocean-image-morpheus-centos-8-stream" {
   computeServerImage = true
   isCloudInit        = true
   externalId         = "centos-stream-8-x64"
-  osType {
-    code = "cent.8.64"
-  }
+  osType             = "cent.8.64"
 }
 
 resource "virtual-image" "digitalocean-image-morpheus-centos-9-stream" {
@@ -197,9 +175,7 @@ resource "virtual-image" "digitalocean-image-morpheus-centos-9-stream" {
   computeServerImage = true
   isCloudInit        = true
   externalId         = "centos-stream-9-x64"
-  osType {
-    code = "cent.9.64"
-  }
+  osType             = "cent.9.64"
 }
 
 resource "virtual-image" "digitalocean-image-morpheus-rocky-8_4" {
@@ -214,9 +190,7 @@ resource "virtual-image" "digitalocean-image-morpheus-rocky-8_4" {
   computeServerImage = true
   isCloudInit        = true
   externalId         = "rockylinux-8-x64"
-  osType {
-    code = "rocky.8.64"
-  }
+  osType             = "rocky.8.64"
 }
 
 resource "virtual-image" "digitalocean-image-morpheus-rocky-8_6" {
@@ -231,9 +205,7 @@ resource "virtual-image" "digitalocean-image-morpheus-rocky-8_6" {
   computeServerImage = true
   isCloudInit        = true
   externalId         = "rockylinux-8-x64"
-  osType {
-    code = "rocky.8.64"
-  }
+  osType             = "rocky.8.64"
 }
 
 resource "virtual-image" "digitalocean-image-morpheus-rocky-9" {
@@ -248,9 +220,7 @@ resource "virtual-image" "digitalocean-image-morpheus-rocky-9" {
   computeServerImage = true
   isCloudInit        = true
   externalId         = "rockylinux-9-x64"
-  osType {
-    code = "rocky.9.64"
-  }
+  osType             = "rocky.9.64"
 }
 
 resource "virtual-image" "digitalocean-image-morpheus-almalinux-9" {
@@ -265,7 +235,5 @@ resource "virtual-image" "digitalocean-image-morpheus-almalinux-9" {
   computeServerImage = true
   isCloudInit        = true
   externalId         = "almalinux-9-x64"
-  osType {
-    code = "almalinux.9.64"
-  }
+  osType             = "almalinux.9.64"
 }
