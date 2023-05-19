@@ -41,7 +41,12 @@ resource "instance-type" "digitalocean" {
   backupType           = "digitaloceanSnapshot"
   provisionSelectType  = "zone"
   provisionType = "digitalocean"
+  pluginIconPath = "digitalocean.svg"
+  pluginIconDarkPath = "digitalocean.svg"
+  pluginIconHidpiPath = "digitalocean.svg"
+  pluginIconDarkHidpiPath = "digitalocean.svg"
   optionTypes = [
+    "instanceType.digitalOcean.imageId",
     "instanceType.exposePorts"
   ]
 }
