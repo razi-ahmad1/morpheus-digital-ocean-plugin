@@ -404,7 +404,8 @@ class DigitalOceanApiService {
 			Integer attempts = 1;
 			if(rtn.success == false) {
 				Boolean noResponse = (rtn.success == false && rtn.getError()?.toLowerCase()?.contains("failed to respond"))
-				while(noResponse == true && attempts <= 5) {
+				Boolean serviceUnavailable = (rtn.success == false && rtn.getErrorCode() == '503')
+				while((noResponse == true || serviceUnavailable == true) && attempts <= 5) {
 					log.debug("API failed to respond, attempting to try again (attempt $attempts)")
 					rtn = apiClient.callJsonApi(DIGITAL_OCEAN_ENDPOINT, path, requestOptions, requestMethod)
 					noResponse = (rtn.success == false && rtn.getError()?.toLowerCase()?.contains("failed to respond"))
