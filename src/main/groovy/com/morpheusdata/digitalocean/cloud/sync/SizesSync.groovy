@@ -339,17 +339,25 @@ class SizesSync {
 		log.debug("updateMatchedPrice updateItems: ${updateItems.size()}")
 		// update price for pricing changes
 		List<AccountPrice> itemsToUpdate = []
+		Map<Long, BigDecimal> updateCostMap = [:]
 		updateItems.each {it ->
 			AccountPrice remoteItem = it.masterItem
 			AccountPrice localItem = it.existingItem
-			def save = false
+			def doSave = false
 
-			if(localItem.cost != remoteItem.cost) {
-				localItem.cost = remoteItem.cost
-				save = true
+			if(localItem.name != remoteItem.name) {
+				localItem.name = remoteItem.name
+				doSave = true
 			}
 
-			if(save) {
+			if(localItem.cost != remoteItem.cost) {
+				log.debug("cost doesn't match, updating: local: $localItem.cost, remote: $remoteItem.cost")
+				localItem.cost = remoteItem.cost
+				doSave = true
+			}
+
+			if(doSave) {
+				updateCostMap[localItem.id] = remoteItem.cost
 				itemsToUpdate << localItem
 			}
 		}
@@ -361,6 +369,10 @@ class SizesSync {
 				Map<String, AccountPriceSet> tmpPriceSets = morpheusContext.accountPriceSet.listByCode(priceSetCodes).toList().blockingGet().collectEntries { [(it.code): it] }
 				morpheusContext.accountPrice.listByCode(priceSetCodes).blockingSubscribe { AccountPrice price ->
 					AccountPriceSet priceSet = tmpPriceSets[price.code]
+					BigDecimal matchedCost = updateCostMap[price.id]
+					if(matchedCost != null) {
+						price.cost = matchedCost
+					}
 					if(priceSet) {
 						morpheusContext.accountPriceSet.addToPriceSet(priceSet, price).blockingGet()
 					} else {
