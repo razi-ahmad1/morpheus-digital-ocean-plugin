@@ -389,7 +389,7 @@ class SizesSync {
 		return "${sizeData.description} ${sizeData.vcpus} CPU, ${memoryName} Memory, ${sizeData.disk} GB Storage"
 	}
 
-	ServiceResponse clean(Cloud cloud, Map opts=[:]) {
+	ServiceResponse clean(Map opts=[:]) {
 		// delete stuff
 		return ServiceResponse.success();
 	}

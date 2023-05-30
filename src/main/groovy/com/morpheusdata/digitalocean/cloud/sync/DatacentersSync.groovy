@@ -92,12 +92,14 @@ class DatacentersSync {
 		return "digitalocean.${cloud.id}.datacenter"
 	}
 
-	ServiceResponse clean(Cloud cloud, Map opts=[:]) {
-		def removeItems = []
-		morpheusContext.referenceData.listByCategory(generateCategoryForCloud(cloud)).blockingSubscribe {
-			removeItems << []
-		}
-		morpheusContext.referenceData.remove(removeItems)
+	ServiceResponse clean(Map opts=[:]) {
+		log.debug("Cleaning up DatacenterSync data on digital ocean cloud with id {}", cloud.id)
+		Observable<ReferenceDataSyncProjection> domainReferenceData = morpheusContext.referenceData.listByCategory(generateCategoryForCloud(cloud))
+			.buffer(50)
+			.blockingSubscribe { List<ReferenceDataSyncProjection> deleteList ->
+				morpheusContext.referenceData.remove(deleteList).blockingGet()
+			}
+
 		return ServiceResponse.success();
 	}
 

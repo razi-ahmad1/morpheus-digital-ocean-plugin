@@ -341,6 +341,7 @@ class DigitalOceanCloudProvider implements CloudProvider {
 
 	@Override
 	ServiceResponse deleteCloud(Cloud cloudInfo) {
+		log.debug("deleteCloud with id {}", cloudInfo.id)
 		(new DatacentersSync(plugin, cloudInfo, null)).clean()
 		(new SizesSync(plugin, cloudInfo, null)).clean()
 		(new ImagesSync(plugin, cloudInfo, null)).clean()

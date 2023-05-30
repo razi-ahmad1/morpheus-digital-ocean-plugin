@@ -163,7 +163,7 @@ class ImagesSync {
 		morpheusContext.virtualImage.save(imagesToUpdate, cloud).blockingGet()
 	}
 
-	ServiceResponse clean(Cloud cloud, Map opts=[:]) {
+	ServiceResponse clean(Map opts=[:]) {
 		// delete stuff
 		return ServiceResponse.success();
 	}
