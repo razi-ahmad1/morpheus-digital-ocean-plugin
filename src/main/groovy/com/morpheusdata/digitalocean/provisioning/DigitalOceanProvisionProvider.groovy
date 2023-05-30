@@ -321,6 +321,11 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 	}
 
 	@Override
+	String getNodeFormat() {
+		return "vm"
+	}
+
+	@Override
 	Boolean customSupported() {
 		return true
 	}
