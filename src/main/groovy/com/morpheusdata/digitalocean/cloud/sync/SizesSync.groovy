@@ -127,6 +127,11 @@ class SizesSync {
 				save = true
 			}
 
+			if(localItem.price_hourly != remoteItem.price_hourly) {
+				localItem.price_hourly = remoteItem.price_hourly
+				save = true
+			}
+
 			if(save) {
 				itemsToUpdate << localItem
 			}
@@ -254,7 +259,8 @@ class SizesSync {
 		log.debug("createPriceSets: createList count: ${createList.size()}, priceSetPlans count: ${priceSetPlans.size}")
 		Boolean priceSetsCreated = morpheusContext.accountPriceSet.create(createList).blockingGet()
 		if(priceSetsCreated) {
-			syncServicePlanPriceSets(createList, priceSetPlans)
+			List<AccountPriceSet> tmpPriceSets = morpheusContext.accountPriceSet.listByCode(createList.collect { it.code }).toList().blockingGet()
+			syncServicePlanPriceSets(tmpPriceSets, priceSetPlans)
 		}
 	}
 
@@ -298,7 +304,7 @@ class SizesSync {
 			while(createList.size() > 0) {
 				List chunkedList = createList.take(50)
 				createList = createList.drop(50)
-				log.debug("ServicePlanPriceSet createList: $chunkedList")
+				log.debug("ServicePlanPriceSet createList count: $chunkedList.size()")
 				morpheusContext.servicePlanPriceSet.create(chunkedList).blockingGet()
 			}
 		}.withLoadObjectDetails { List<SyncTask.UpdateItemDto<ServicePlanPriceSetIdentityProjection, ServicePlanPriceSet>> updateItems ->
@@ -308,7 +314,7 @@ class SizesSync {
 				return new SyncTask.UpdateItem<ServicePlanPriceSet, ServicePlanPriceSet>(existingItem: servicePlanPriceSet, masterItem: matchItem.masterItem)
 			}
 		}.onUpdate { updateList ->
-			log.debug("ServicePlanPriceSet updateList: $updateList")
+			log.debug("ServicePlanPriceSet updateList count: $updateList.size()")
 			// do nothing
 		}.start()
 	}
