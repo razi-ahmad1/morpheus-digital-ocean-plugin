@@ -27,6 +27,16 @@ class DigitalOceanApiService {
 		this.apiClient = new HttpApiClient(throttleRate:500l)
 	}
 
+	ServiceResponse testConnection(String apiKey) {
+		ServiceResponse rtn = ServiceResponse.prepare()
+		String apiPath = "/v2/regions"
+		ServiceResponse response = internalPaginatedGetApiRequest(apiKey, apiPath, 'regions')
+		rtn.success = response.success
+		rtn.data = [invalidLogin: (response?.errorCode == "401")]
+
+		return rtn
+	}
+
 	ServiceResponse getAccount(String apiKey) {
 		ServiceResponse rtn = ServiceResponse.prepare()
 		String apiPath = "/v2/account"

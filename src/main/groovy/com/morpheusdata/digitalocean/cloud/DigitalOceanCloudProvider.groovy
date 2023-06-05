@@ -322,20 +322,50 @@ class DigitalOceanCloudProvider implements CloudProvider {
 
 	@Override
 	ServiceResponse refresh(Cloud cloud, DigitalOceanApiService apiService=null) {
-		apiService = apiService ?: new DigitalOceanApiService()
+		def rtn = ServiceResponse.prepare()
 		log.debug("Short refresh cloud ${cloud.code}")
-		(new ImagesSync(plugin, cloud, apiService, true)).execute()
+		apiService = apiService ?: new DigitalOceanApiService()
+		def syncDate = new Date()
+		String apiKey = plugin.getAuthConfig(cloud).doApiKey
+		ServiceResponse testResult = apiService.testConnection(apiKey)
+		if(testResult.success) {
+			(new ImagesSync(plugin, cloud, apiService, true)).execute()
+			rtn.success = true
+		} else {
+			if(testResult.data.invalidLogin) {
+				rtn.success = false
+				rtn.msg = 'Error refreshing cloud: invalid credentials'
+				rtn.data = [status: Cloud.Status.offline]
+			} else {
+				rtn.success = false
+				rtn.msg = 'Error refreshing cloud: host not reachable'
+				rtn.data = [status: Cloud.Status.offline]
+			}
+		}
+
 		log.debug("Completed short refresh for cloud $cloud.code")
-		return ServiceResponse.success()
+		return rtn
 	}
 
 	@Override
 	void refreshDaily(Cloud cloud, DigitalOceanApiService apiService=null) {
-		apiService = apiService ?: new DigitalOceanApiService()
 		log.debug("daily refresh cloud ${cloud.code}")
-		(new DatacentersSync(plugin, cloud, apiService)).execute()
-		(new SizesSync(plugin, cloud, apiService)).execute()
-		(new ImagesSync(plugin, cloud, apiService, false)).execute()
+		apiService = apiService ?: new DigitalOceanApiService()
+		def syncDate = new Date()
+		String apiKey = plugin.getAuthConfig(cloud).doApiKey
+		ServiceResponse testResult = apiService.testConnection(apiKey)
+		if(testResult.success) {
+			(new DatacentersSync(plugin, cloud, apiService)).execute()
+			(new SizesSync(plugin, cloud, apiService)).execute()
+			(new ImagesSync(plugin, cloud, apiService, false)).execute()
+		} else {
+			if(testResult.data.invalidLogin) {
+				morpheusContext.cloud.updateZoneStatus(cloud, Cloud.Status.offline, 'Error refreshing cloud: invalid credentials', syncDate)
+			} else {
+				morpheusContext.cloud.updateZoneStatus(cloud, Cloud.Status.offline, 'Error refreshing cloud: host not reachable', syncDate)
+			}
+		}
+
 		log.debug("Completed daily refresh for cloud ${cloud.code}")
 	}
 
