@@ -468,8 +468,9 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 			return new ServiceResponse<WorkloadResponse>(success: true, data: workloadResponse)
 		} else {
-			log.debug("Failed to create droplet: $response.results")
-			return new ServiceResponse(success: false, msg: response.errorCode, content: response.content, error: response.data)
+			def errorMessage = getErrorMessage(response.errorCode, response.results)
+			log.debug("Failed to create droplet: $errorMessage")
+			return new ServiceResponse(success: false, msg: errorMessage, content: response.content, error: response.data)
 		}
 	}
 
@@ -600,8 +601,9 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 			return new ServiceResponse<HostResponse>(success: true, data: hostResponse)
 		} else {
-			log.debug("Failed to create droplet: $response.results")
-			return new ServiceResponse(success: false, msg: response?.errorCode, content: response.content, error: response.data)
+			def errorMessage = getErrorMessage(response.errorCode, response.results)
+			log.debug("Failed to create droplet: $errorMessage")
+			return new ServiceResponse(success: false, msg: errorMessage, content: response.content, error: response.data)
 		}
 	}
 
@@ -867,6 +869,22 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider {
 
 	protected cleanInstanceName(name) {
 		def rtn = name.replaceAll(/[^a-zA-Z0-9\.\-]/,'')
+		return rtn
+	}
+
+	protected getErrorMessage(String errorCode, Map responseBody) {
+		def rtn = ""
+		if(responseBody.message) {
+			rtn = "$responseBody.message"
+			if(errorCode) {
+				rtn += " (error: $errorCode)"
+			}
+		} else if(errorCode) {
+			rtn = "API error: $errorCode"
+		} else {
+			rtn = "Unknown API error occurred."
+		}
+
 		return rtn
 	}
 }
