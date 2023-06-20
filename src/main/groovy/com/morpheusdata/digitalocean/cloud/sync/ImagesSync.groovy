@@ -2,6 +2,7 @@ package com.morpheusdata.digitalocean.cloud.sync
 
 import com.morpheusdata.model.BackupProvider
 import com.morpheusdata.model.PlatformType
+import com.morpheusdata.model.VirtualImageLocation
 import com.morpheusdata.response.ServiceResponse
 import com.morpheusdata.digitalocean.DigitalOceanPlugin
 import com.morpheusdata.digitalocean.DigitalOceanApiService
@@ -113,7 +114,18 @@ class ImagesSync {
 						refType    : 'ComputeZone'
 					]
 				}
-				virtualImages << new VirtualImage(props)
+				VirtualImage virtualImage = new VirtualImage(props)
+				Map locationProps = [
+					virtualImage: virtualImage,
+					code        : "${imageCodeBase}${userImages ? ".${cloud.code}.${virtualImage.externalId}" : ".${virtualImage.externalId}"}",
+					internalId  : virtualImage.externalId,
+					externalId  : virtualImage.externalId,
+					imageName   : virtualImage.name,
+					imageRegion : cloud.regionCode
+				]
+				VirtualImageLocation virtualImageLocation = new VirtualImageLocation(locationProps)
+				virtualImage.imageLocations = [virtualImageLocation]
+				virtualImages << virtualImage
 			}
 		}
 		log.debug("api images: $virtualImages")
