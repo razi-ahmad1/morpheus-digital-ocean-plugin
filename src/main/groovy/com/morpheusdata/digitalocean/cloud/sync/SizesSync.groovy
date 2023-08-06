@@ -48,7 +48,7 @@ class SizesSync {
 			response.data?.each {
 				def name = getNameForSize(it)
 				def servicePlan = new ServicePlan(
-						code: "${SIZE_PREFIX}${it.slug}",
+						code: "${SIZE_PREFIX}${it.slug}".toString(),
 						provisionTypeCode: 'digitalocean',
 						description: name,
 						name: name,
@@ -67,7 +67,7 @@ class SizesSync {
 			}
 
 			if (servicePlans) {
-				ProvisioningProvider provisioningProvider = this.plugin.getProviderByCode('digitalocean-provision-provider')
+				ProvisioningProvider provisioningProvider = (ProvisioningProvider)this.plugin.getProviderByCode('digitalocean-provision-provider')
 				ProvisionType provisionType = new ProvisionType(code: provisioningProvider.provisionTypeCode)
 				Observable<ServicePlanIdentityProjection> domainPlans = morpheusContext.servicePlan.listSyncProjections(provisionType)
 				SyncTask<ServicePlanIdentityProjection, ServicePlan, ServicePlan> syncTask = new SyncTask(domainPlans, servicePlans)
@@ -153,49 +153,53 @@ class SizesSync {
 		Map<String, ServicePlan> priceSetPlans = [:]
 		Map<String, ServicePlan> priceSetPrices = [:]
 
+		// fetch service plans with their updated IDs
 		List<String> servicePlanCodes = servicePlans.collect { it.code }
 		Map<String, ServicePlan> tmpServicePlanMap = morpheusContext.servicePlan.listByCode(servicePlanCodes).toList().blockingGet().collectEntries { [(it.code):it]}
 
 		priceUnits.each { String priceUnit ->
+			// each new or existing service plan
 			servicePlans.each { ServicePlan servicePlan ->
 				def priceSetName = "${servicePlan.name} - ${priceUnit.capitalize()}"
-				def priceSetCode = "digitalocean.size.${servicePlan.externalId}.${priceUnit}"
-				priceSetCodes << priceSetCode
+				def priceSetCode = "digitalocean.size.${servicePlan.externalId}.${priceUnit}".toString()
+				if(!priceSetCodes.contains(priceSetCode)) { // prevent duplicate codes
+					priceSetCodes << priceSetCode
 
-				def tmpServicePlan = tmpServicePlanMap[servicePlan.code]
-				// need the id from the local plan and the price from the temp api plan
-				servicePlan.id = tmpServicePlan.id
-				priceSetPlans[priceSetCode] = servicePlan
+					def tmpServicePlan = tmpServicePlanMap[servicePlan.code]
+					// need the id from the local plan and the price from the temp api plan
+					servicePlan.id = tmpServicePlan.id
+					priceSetPlans[priceSetCode] = servicePlan
 
-				AccountPriceSet priceSet = new AccountPriceSet(
-					name: priceSetName,
-					code: priceSetCode,
-					priceUnit: priceUnit,
-					type: AccountPriceSet.PRICE_SET_TYPE.fixed.toString(),
-					systemCreated: true
-				)
-				apiPriceSets << priceSet
+					AccountPriceSet priceSet = new AccountPriceSet(
+						name: priceSetName,
+						code: priceSetCode,
+						priceUnit: priceUnit,
+						type: AccountPriceSet.PRICE_SET_TYPE.fixed.toString(),
+						systemCreated: true
+					)
+					apiPriceSets << priceSet
 
-				AccountPrice price = new AccountPrice(
-					name: priceSetName,
-					code: priceSetCode,
-					active:true,
-					priceType: AccountPrice.PRICE_TYPE.fixed,
-					incurCharges: 'always',
-					systemCreated: true,
-					cost: new BigDecimal((servicePlan.getAt("price_${priceUnit}ly") ?: '0.0').toString()),
-					priceUnit: priceUnit
-				)
-				apiPrices << price
-				priceSetPrices[priceSetCode] = price
-
+					AccountPrice price = new AccountPrice(
+						name: priceSetName,
+						code: priceSetCode,
+						active:true,
+						priceType: AccountPrice.PRICE_TYPE.fixed,
+						incurCharges: 'always',
+						systemCreated: true,
+						cost: new BigDecimal((servicePlan.getAt("price_${priceUnit}ly") ?: '0.0').toString()),
+						priceUnit: priceUnit
+					)
+					apiPrices << price
+					priceSetPrices[priceSetCode] = price
+				}
 			}
 		}
 
+		// Account Price Set
 		Observable<AccountPriceSetIdentityProjection> existingPriceSets = morpheusContext.accountPriceSet.listSyncProjectionsByCode(priceSetCodes)
 		SyncTask<AccountPriceSetIdentityProjection, AccountPriceSet, AccountPriceSet> syncTask = new SyncTask(existingPriceSets, apiPriceSets)
 		syncTask.addMatchFunction { AccountPriceSetIdentityProjection projection, AccountPriceSet apiItem ->
-			return projection.code.toString() == apiItem.code.toString()
+			return projection.code == apiItem.code
 		}.onDelete { List<AccountPriceSetIdentityProjection> deleteList ->
 			def deleteIds = deleteList.collect { it.id }
 			List<ServicePlanPriceSet> servicePlanPriceSetDeleteList = morpheusContext.servicePlanPriceSet.listByAccountPriceSetIds(deleteIds).toList().blockingGet()
@@ -256,7 +260,6 @@ class SizesSync {
 	}
 
 	def createPriceSets(List<AccountPriceSet> createList, Map<String, ServicePlan> priceSetPlans) {
-		log.debug("createPriceSets: createList count: ${createList.size()}, priceSetPlans count: ${priceSetPlans.size}")
 		Boolean priceSetsCreated = morpheusContext.accountPriceSet.create(createList).blockingGet()
 		if(priceSetsCreated) {
 			List<AccountPriceSet> tmpPriceSets = morpheusContext.accountPriceSet.listByCode(createList.collect { it.code }).toList().blockingGet()
@@ -289,7 +292,6 @@ class SizesSync {
 	}
 
 	def syncServicePlanPriceSets(List<AccountPriceSet> priceSets, Map<String, ServicePlan> priceSetPlans) {
-		log.debug("syncServicePlanPriceSets: priceSets count: ${priceSets.size()}, servicePlans count: ${priceSetPlans.size()}")
 		List<ServicePlanPriceSet> apiItems = priceSets?.collect { AccountPriceSet priceSet ->
 			new ServicePlanPriceSet(priceSet: priceSet, servicePlan: priceSetPlans[priceSet.code])
 		}
@@ -297,14 +299,13 @@ class SizesSync {
 		Observable<ServicePlanPriceSetIdentityProjection> existingItems = morpheusContext.servicePlanPriceSet.listSyncProjections(priceSets)
 		SyncTask<ServicePlanPriceSetIdentityProjection, ServicePlanPriceSet, ServicePlanPriceSet> syncTask = new SyncTask(existingItems, apiItems)
 		syncTask.addMatchFunction { ServicePlanPriceSetIdentityProjection projection, ServicePlanPriceSet apiItem ->
-			projection.priceSet.code == apiItem.priceSet.code && projection.servicePlan.code == apiItem.servicePlan.code
+			return (projection.priceSet.code == apiItem.priceSet.code && projection.servicePlan.code == apiItem.servicePlan.code)
 		}.onDelete { List<ServicePlanPriceSetIdentityProjection> deleteList ->
 			morpheusContext.servicePlanPriceSet.remove(deleteList).blockingGet()
 		}.onAdd { createList ->
 			while(createList.size() > 0) {
 				List chunkedList = createList.take(50)
 				createList = createList.drop(50)
-				log.debug("ServicePlanPriceSet createList count: $chunkedList.size()")
 				morpheusContext.servicePlanPriceSet.create(chunkedList).blockingGet()
 			}
 		}.withLoadObjectDetails { List<SyncTask.UpdateItemDto<ServicePlanPriceSetIdentityProjection, ServicePlanPriceSet>> updateItems ->
@@ -314,7 +315,6 @@ class SizesSync {
 				return new SyncTask.UpdateItem<ServicePlanPriceSet, ServicePlanPriceSet>(existingItem: servicePlanPriceSet, masterItem: matchItem.masterItem)
 			}
 		}.onUpdate { updateList ->
-			log.debug("ServicePlanPriceSet updateList count: $updateList.size()")
 			// do nothing
 		}.start()
 	}
@@ -336,7 +336,6 @@ class SizesSync {
 	}
 
 	def updateMatchedPrice(List<SyncTask.UpdateItem<AccountPrice,AccountPrice>> updateItems) {
-		log.debug("updateMatchedPrice updateItems: ${updateItems.size()}")
 		// update price for pricing changes
 		List<AccountPrice> itemsToUpdate = []
 		Map<Long, BigDecimal> updateCostMap = [:]
