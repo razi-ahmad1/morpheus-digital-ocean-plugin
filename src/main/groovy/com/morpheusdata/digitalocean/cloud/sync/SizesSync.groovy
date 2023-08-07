@@ -104,7 +104,11 @@ class SizesSync {
 						updateMatchedPlans(chunkedList)
 					}
 				}.start()
+
 			}
+
+			// clean up old duplicate data caused by a bug in v1.0.0 of this plugin sync
+			cleanDuplicates()
 		} catch(e) {
 			log.error("Error in execute : ${e}", e)
 		}
@@ -155,7 +159,7 @@ class SizesSync {
 
 		// fetch service plans with their updated IDs
 		List<String> servicePlanCodes = servicePlans.collect { it.code }
-		Map<String, ServicePlan> tmpServicePlanMap = morpheusContext.servicePlan.listByCode(servicePlanCodes).toList().blockingGet().collectEntries { [(it.code):it]}
+		Map<String, ServicePlan> tmpServicePlanMap = morpheusContext.servicePlan.listByCode(servicePlanCodes).distinct { it.code }.toList().blockingGet().collectEntries { [(it.code):it]}
 
 		priceUnits.each { String priceUnit ->
 			// each new or existing service plan
@@ -187,7 +191,10 @@ class SizesSync {
 						incurCharges: 'always',
 						systemCreated: true,
 						cost: new BigDecimal((servicePlan.getAt("price_${priceUnit}ly") ?: '0.0').toString()),
-						priceUnit: priceUnit
+						priceUnit: priceUnit,
+						markup: 0,
+						markupPercent: 0,
+						currency: 'usd'
 					)
 					apiPrices << price
 					priceSetPrices[priceSetCode] = price
@@ -262,7 +269,7 @@ class SizesSync {
 	def createPriceSets(List<AccountPriceSet> createList, Map<String, ServicePlan> priceSetPlans) {
 		Boolean priceSetsCreated = morpheusContext.accountPriceSet.create(createList).blockingGet()
 		if(priceSetsCreated) {
-			List<AccountPriceSet> tmpPriceSets = morpheusContext.accountPriceSet.listByCode(createList.collect { it.code }).toList().blockingGet()
+			List<AccountPriceSet> tmpPriceSets = morpheusContext.accountPriceSet.listByCode(createList.collect { it.code }).distinct{it.code }.toList().blockingGet()
 			syncServicePlanPriceSets(tmpPriceSets, priceSetPlans)
 		}
 	}
@@ -292,12 +299,19 @@ class SizesSync {
 	}
 
 	def syncServicePlanPriceSets(List<AccountPriceSet> priceSets, Map<String, ServicePlan> priceSetPlans) {
-		List<ServicePlanPriceSet> apiItems = priceSets?.collect { AccountPriceSet priceSet ->
-			new ServicePlanPriceSet(priceSet: priceSet, servicePlan: priceSetPlans[priceSet.code])
+		Map<String, ServicePlanPriceSet> apiItems = [:]
+
+		// make sure we have a distinct list of price sets to prevent duplicate service plan price sets.
+		// this is primarily an issue when the data already had duplicates, we will continue to create duplicates
+		// and compound the problem.
+		priceSets?.collect { AccountPriceSet priceSet ->
+			if(apiItems[priceSet.code] == null) {
+				apiItems[priceSet.code] = new ServicePlanPriceSet(priceSet: priceSet, servicePlan: priceSetPlans[priceSet.code])
+			}
 		}
 
 		Observable<ServicePlanPriceSetIdentityProjection> existingItems = morpheusContext.servicePlanPriceSet.listSyncProjections(priceSets)
-		SyncTask<ServicePlanPriceSetIdentityProjection, ServicePlanPriceSet, ServicePlanPriceSet> syncTask = new SyncTask(existingItems, apiItems)
+		SyncTask<ServicePlanPriceSetIdentityProjection, ServicePlanPriceSet, ServicePlanPriceSet> syncTask = new SyncTask(existingItems, apiItems.values())
 		syncTask.addMatchFunction { ServicePlanPriceSetIdentityProjection projection, ServicePlanPriceSet apiItem ->
 			return (projection.priceSet.code == apiItem.priceSet.code && projection.servicePlan.code == apiItem.servicePlan.code)
 		}.onDelete { List<ServicePlanPriceSetIdentityProjection> deleteList ->
@@ -355,6 +369,36 @@ class SizesSync {
 				doSave = true
 			}
 
+			if(localItem.priceType != remoteItem.priceType) {
+				localItem.priceType = remoteItem.priceType
+				doSave = true
+			}
+
+			if(localItem.incurCharges != remoteItem.incurCharges) {
+				localItem.incurCharges = remoteItem.incurCharges
+				doSave = true
+			}
+
+			if(localItem.priceUnit != remoteItem.priceUnit) {
+				localItem.priceUnit = remoteItem.priceUnit
+				doSave = true
+			}
+			//
+			// if(localItem.markup != remoteItem.markup) {
+			// 	localItem.markup = remoteItem.markup
+			// 	doSave = true
+			// }
+			//
+			// if(localItem.markupPercent != remoteItem.markupPercent) {
+			// 	localItem.markupPercent = remoteItem.markupPercent
+			// 	doSave = true
+			// }
+
+			if(localItem.currency != remoteItem.currency) {
+				localItem.currency = remoteItem.currency
+				doSave = true
+			}
+
 			if(doSave) {
 				updateCostMap[localItem.id] = remoteItem.cost
 				itemsToUpdate << localItem
@@ -380,6 +424,13 @@ class SizesSync {
 				}
 			}
 		}
+	}
+
+	def cleanDuplicates() {
+		// service plan price sets
+		// account price
+		// account price set
+		// service plan
 	}
 
 
