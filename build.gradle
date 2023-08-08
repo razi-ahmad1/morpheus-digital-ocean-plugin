@@ -81,7 +81,7 @@ jar {
 			'Morpheus-Color': '#ffffff',
 			'Morpheus-Labels': 'Plugin, cloud',
 			'Morpheus-Repo': 'https://github.com/gomorpheus/morpheus-digital-ocean-plugin',
-			'Morpheus-Min-Appliance-Version': "6.0.6"
+			'Morpheus-Min-Appliance-Version': "6.0.6, 6.2.1"
 		)
 	}
 }
