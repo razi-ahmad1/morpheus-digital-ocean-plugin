@@ -1,17 +1,18 @@
 package com.morpheusdata.digitalocean.provisioning
 
+import com.morpheusdata.digitalocean.DigitalOceanPlugin
 import com.morpheusdata.digitalocean.provisioning.DigitalOceanProvisionProvider
 import com.morpheusdata.core.cloud.MorpheusCloudService
 import com.morpheusdata.core.MorpheusComputeServerService
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.MorpheusVirtualImageService
 import com.morpheusdata.core.provisioning.MorpheusProvisionService
+import com.morpheusdata.digitalocean.DigitalOceanApiService
 import com.morpheusdata.core.Plugin
 import com.morpheusdata.model.Cloud
 import com.morpheusdata.model.ComputeServer
 import com.morpheusdata.model.Instance
 import com.morpheusdata.model.KeyPair
-import com.morpheusdata.model.NetworkConfiguration
 import com.morpheusdata.model.ServicePlan
 import com.morpheusdata.model.provisioning.UsersConfiguration
 import com.morpheusdata.model.Workload

@@ -1,6 +1,6 @@
 package com.morpheusdata.digitalocean
 
-import com.morpheusdata.response.WorkloadResponse
+import com.morpheusdata.response.ProvisionResponse
 import spock.lang.Specification
 import spock.lang.Subject
 
@@ -13,7 +13,7 @@ class DigitalOceanApiServiceSpec extends Specification {
 		service = new DigitalOceanApiService()
 	}
 
-	void "dropletToWorkloadResponse"() {
+	void "dropletToProvisionResponse"() {
 		given:
 		def droplet = [
 				id      : '1111',
@@ -24,10 +24,10 @@ class DigitalOceanApiServiceSpec extends Specification {
 						]
 				]
 		]
-		WorkloadResponse expected = new WorkloadResponse(externalId: '1111', publicIp: '10.10.10.10', privateIp: '192.168.0.10', success:true)
+		ProvisionResponse expected = new ProvisionResponse(externalId: '1111', publicIp: '10.10.10.10', privateIp: '192.168.0.10', success:true)
 
 		when:
-		def resp = service.dropletToWorkloadResponse(droplet)
+		def resp = service.dropletToProvisionResponse(droplet)
 
 		then:
 		resp.externalId == expected.externalId

@@ -44,7 +44,7 @@ class DatacentersSync {
 					morpheusContext.referenceData.create(createList).blockingGet()
 				}.withLoadObjectDetails { List<SyncTask.UpdateItemDto<ReferenceDataSyncProjection, ReferenceData>> updateItems ->
 					Map<Long, SyncTask.UpdateItemDto<ReferenceDataSyncProjection, Map>> updateItemMap = updateItems.collectEntries { [(it.existingItem.id): it]}
-					morpheusContext.cloud.listReferenceDataById(updateItems.collect { it.existingItem.id } as Collection<Long>).map {ReferenceData datacenter ->
+					morpheusContext.async.referenceData.listById(updateItems.collect { it.existingItem.id } as List<Long>).map { ReferenceData datacenter ->
 						SyncTask.UpdateItemDto<ReferenceDataSyncProjection, Map> matchItem = updateItemMap[datacenter.id]
 						return new SyncTask.UpdateItem<ServicePlan,Map>(existingItem:datacenter, masterItem:matchItem.masterItem)
 					}

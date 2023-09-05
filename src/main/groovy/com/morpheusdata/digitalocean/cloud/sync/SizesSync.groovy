@@ -1,6 +1,6 @@
 package com.morpheusdata.digitalocean.cloud.sync
 
-import com.morpheusdata.core.ProvisioningProvider
+import com.morpheusdata.core.providers.ProvisionProvider
 import com.morpheusdata.core.util.SyncList
 import com.morpheusdata.model.Account
 import com.morpheusdata.model.AccountPrice
@@ -67,8 +67,8 @@ class SizesSync {
 			}
 
 			if (servicePlans) {
-				ProvisioningProvider provisioningProvider = (ProvisioningProvider)this.plugin.getProviderByCode('digitalocean-provision-provider')
-				ProvisionType provisionType = new ProvisionType(code: provisioningProvider.provisionTypeCode)
+				ProvisionProvider provisionProvider = (ProvisionProvider)this.plugin.getProviderByCode('digitalocean-provision-provider')
+				ProvisionType provisionType = new ProvisionType(code: provisionProvider.provisionTypeCode)
 				Observable<ServicePlanIdentityProjection> domainPlans = morpheusContext.servicePlan.listSyncProjections(provisionType)
 				SyncTask<ServicePlanIdentityProjection, ServicePlan, ServicePlan> syncTask = new SyncTask(domainPlans, servicePlans)
 				syncTask.addMatchFunction { ServicePlanIdentityProjection projection, ServicePlan apiPlan ->

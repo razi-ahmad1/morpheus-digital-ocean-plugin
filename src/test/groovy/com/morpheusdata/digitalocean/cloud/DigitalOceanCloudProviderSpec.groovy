@@ -4,6 +4,8 @@ import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.MorpheusServicePlanService
 import com.morpheusdata.core.MorpheusVirtualImageService
 import com.morpheusdata.core.Plugin
+import com.morpheusdata.digitalocean.DigitalOceanApiService
+import com.morpheusdata.digitalocean.DigitalOceanPlugin
 import com.morpheusdata.model.Cloud
 import com.morpheusdata.model.ServicePlan
 import com.morpheusdata.model.VirtualImage

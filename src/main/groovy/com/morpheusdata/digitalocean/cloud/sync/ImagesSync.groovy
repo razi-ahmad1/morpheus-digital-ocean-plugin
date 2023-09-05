@@ -100,7 +100,6 @@ class ImagesSync {
 					category   : "${imageCodeBase}${userImages ? ".${cloud.code}" : ""}",
 					imageType  : ImageType.qcow2,
 					platform   : it.distribution == "Unknown" ? PlatformType.unknown : PlatformType.linux,
-					isPublic   : it.public,
 					minDisk    : it.min_disk_size,
 					locations  : it.regions,
 					account    : cloud.account,
