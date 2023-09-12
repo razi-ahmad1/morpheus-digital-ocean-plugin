@@ -339,6 +339,11 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider implements
 	}
 
 	@Override
+	Boolean createDefaultInstanceType() {
+		return false
+	}
+
+	@Override
 	ServiceResponse validateWorkload(Map opts) {
 		log.debug("validateWorkload: ${opts}")
 		return ServiceResponse.success()
