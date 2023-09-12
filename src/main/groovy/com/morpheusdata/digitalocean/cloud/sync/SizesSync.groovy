@@ -66,6 +66,8 @@ class SizesSync {
 				servicePlans << servicePlan
 			}
 
+			log.debug("Service Plans to sync, total: ${servicePlans.size()}, codes: ${servicePlans.collect { it.code}}")
+
 			if (servicePlans) {
 				ProvisionProvider provisionProvider = (ProvisionProvider)this.plugin.getProviderByCode('digitalocean-provision-provider')
 				ProvisionType provisionType = new ProvisionType(code: provisionProvider.provisionTypeCode)
@@ -75,10 +77,11 @@ class SizesSync {
 					return projection.code == apiPlan.code
 				}.onDelete { List<ServicePlanIdentityProjection> deleteList ->
 					def deleteIds = deleteList.collect { it.id }
-					List<ServicePlanPriceSet> servicePlanPriceSetDeleteList = morpheusContext.servicePlanPriceSet.listByServicePlanIds(deleteIds).toList().blockingGet()
-					Boolean servicePlanPriceSetDeleteResult = morpheusContext.servicePlanPriceSet.remove(servicePlanPriceSetDeleteList).blockingGet()
+					log.debug("Removing ${deleteList.size()} service plans")
+					List<ServicePlanPriceSet> servicePlanPriceSetDeleteList = morpheusContext.async.servicePlanPriceSet.listByServicePlanIds(deleteIds).toList().blockingGet()
+					Boolean servicePlanPriceSetDeleteResult = morpheusContext.async.servicePlanPriceSet.remove(servicePlanPriceSetDeleteList).blockingGet()
 					if(servicePlanPriceSetDeleteResult) {
-						morpheusContext.servicePlan.remove(deleteList).blockingGet()
+						morpheusContext.async.servicePlan.remove(deleteList).blockingGet()
 					} else {
 						log.error("Failed to delete ServicePlanPriceSets associated to ServicePlans")
 					}
@@ -86,14 +89,15 @@ class SizesSync {
 					while (createList.size() > 0) {
 						List chunkedList = createList.take(50)
 						createList = createList.drop(50)
-						Boolean servicePlanCreateSuccess = morpheusContext.servicePlan.create(chunkedList).blockingGet()
+						log.debug("Adding ${chunkedList.size()} service plans")
+						Boolean servicePlanCreateSuccess = morpheusContext.async.servicePlan.bulkCreate(chunkedList).blockingGet()
 						if(servicePlanCreateSuccess) {
 							syncPlanPrices(chunkedList)
 						}
 					}
 				}.withLoadObjectDetails { List<SyncTask.UpdateItemDto<ServicePlanIdentityProjection, ServicePlan>> updateItems ->
 					Map<Long, SyncTask.UpdateItemDto<ServicePlanIdentityProjection, ServicePlan>> updateItemMap = updateItems.collectEntries { [(it.existingItem.id): it]}
-					morpheusContext.servicePlan.listById(updateItems.collect { it.existingItem.id } as Collection<Long>).map { ServicePlan servicePlan ->
+					morpheusContext.async.servicePlan.listById(updateItems.collect { it.existingItem.id } as Collection<Long>).map { ServicePlan servicePlan ->
 						SyncTask.UpdateItemDto<ServicePlanIdentityProjection, ServicePlan> matchItem = updateItemMap[servicePlan.id]
 						return new SyncTask.UpdateItem<ServicePlan,ServicePlan>(existingItem:servicePlan, masterItem:matchItem.masterItem)
 					}
@@ -115,11 +119,17 @@ class SizesSync {
 	}
 
 	def updateMatchedPlans(List<SyncTask.UpdateItem<ServicePlan,ServicePlan>> updateItems) {
+		log.debug("updateMatchedPlans: updating ${updateItems.size()} plans")
 		List<ServicePlan> itemsToUpdate = []
 		updateItems.each {it ->
 			ServicePlan remoteItem = it.masterItem
 			ServicePlan localItem = it.existingItem
 			def save = false
+
+			if(localItem.deleted == true) {
+				localItem.deleted = false
+				save = true
+			}
 
 			if(localItem.name != remoteItem.name) {
 				localItem.name = remoteItem.name
@@ -142,7 +152,7 @@ class SizesSync {
 		}
 
 		if(itemsToUpdate.size() > 0) {
-			morpheusContext.servicePlan.save(itemsToUpdate).blockingGet()
+			morpheusContext.async.servicePlan.save(itemsToUpdate).blockingGet()
 		}
 
 		syncPlanPrices(updateItems.collect { it.existingItem })
@@ -159,7 +169,7 @@ class SizesSync {
 
 		// fetch service plans with their updated IDs
 		List<String> servicePlanCodes = servicePlans.collect { it.code }
-		Map<String, ServicePlan> tmpServicePlanMap = morpheusContext.servicePlan.listByCode(servicePlanCodes).distinct { it.code }.toList().blockingGet().collectEntries { [(it.code):it]}
+		Map<String, ServicePlan> tmpServicePlanMap = morpheusContext.async.servicePlan.listByCode(servicePlanCodes).distinct { it.code }.toList().blockingGet().collectEntries { [(it.code):it]}
 
 		priceUnits.each { String priceUnit ->
 			// each new or existing service plan
@@ -203,16 +213,16 @@ class SizesSync {
 		}
 
 		// Account Price Set
-		Observable<AccountPriceSetIdentityProjection> existingPriceSets = morpheusContext.accountPriceSet.listSyncProjectionsByCode(priceSetCodes)
+		Observable<AccountPriceSetIdentityProjection> existingPriceSets = morpheusContext.async.accountPriceSet.listSyncProjectionsByCode(priceSetCodes)
 		SyncTask<AccountPriceSetIdentityProjection, AccountPriceSet, AccountPriceSet> syncTask = new SyncTask(existingPriceSets, apiPriceSets)
 		syncTask.addMatchFunction { AccountPriceSetIdentityProjection projection, AccountPriceSet apiItem ->
 			return projection.code == apiItem.code
 		}.onDelete { List<AccountPriceSetIdentityProjection> deleteList ->
 			def deleteIds = deleteList.collect { it.id }
-			List<ServicePlanPriceSet> servicePlanPriceSetDeleteList = morpheusContext.servicePlanPriceSet.listByAccountPriceSetIds(deleteIds).toList().blockingGet()
-			Boolean servicePlanPriceSetDeleteResult = morpheusContext.servicePlanPriceSet.remove(servicePlanPriceSetDeleteList).blockingGet()
+			List<ServicePlanPriceSet> servicePlanPriceSetDeleteList = morpheusContext.async.servicePlanPriceSet.listByAccountPriceSetIds(deleteIds).toList().blockingGet()
+			Boolean servicePlanPriceSetDeleteResult = morpheusContext.async.servicePlanPriceSet.remove(servicePlanPriceSetDeleteList).blockingGet()
 			if(servicePlanPriceSetDeleteResult) {
-				morpheusContext.accountPriceSet.remove(deleteList).blockingGet()
+				morpheusContext.async.accountPriceSet.remove(deleteList).blockingGet()
 			} else {
 				log.error("Failed to delete ServicePlanPriceSets associated to AccountPriceSet")
 			}
@@ -224,7 +234,7 @@ class SizesSync {
 			}
 		}.withLoadObjectDetails { List<SyncTask.UpdateItemDto<AccountPriceSetIdentityProjection, AccountPriceSet>> updateItems ->
 			Map<Long, SyncTask.UpdateItemDto<AccountPriceSetIdentityProjection, AccountPriceSet>> updateItemMap = updateItems.collectEntries { [(it.existingItem.id): it]}
-			morpheusContext.accountPriceSet.listById(updateItems.collect { it.existingItem.id } as Collection<Long>).map {AccountPriceSet priceSet ->
+			morpheusContext.async.accountPriceSet.listById(updateItems.collect { it.existingItem.id } as Collection<Long>).map {AccountPriceSet priceSet ->
 				SyncTask.UpdateItemDto<AccountPriceSetIdentityProjection, AccountPriceSet> matchItem = updateItemMap[priceSet.id]
 				return new SyncTask.UpdateItem<AccountPriceSet,AccountPriceSet>(existingItem:priceSet, masterItem:matchItem.masterItem)
 			}
@@ -236,12 +246,12 @@ class SizesSync {
 			}
 		}.observe().blockingSubscribe() { complete ->
 			if(complete) {
-				Observable<AccountPriceIdentityProjection> existingPrices = morpheusContext.accountPrice.listSyncProjectionsByCode(priceSetCodes)
+				Observable<AccountPriceIdentityProjection> existingPrices = morpheusContext.async.accountPrice.listSyncProjectionsByCode(priceSetCodes)
 				SyncTask<AccountPriceIdentityProjection, AccountPrice, AccountPrice> priceSyncTask = new SyncTask(existingPrices, apiPrices)
 				priceSyncTask.addMatchFunction { AccountPriceIdentityProjection projection, AccountPrice apiItem ->
 					projection.code == apiItem.code
 				}.onDelete { List<AccountPriceIdentityProjection> deleteList ->
-					morpheusContext.accountPrice.remove(deleteList).blockingGet()
+					morpheusContext.async.accountPrice.remove(deleteList).blockingGet()
 				}.onAdd { createList ->
 					while(createList.size() > 0) {
 						List chunkedList = createList.take(50)
@@ -250,7 +260,7 @@ class SizesSync {
 					}
 				}.withLoadObjectDetails { List<SyncTask.UpdateItemDto<AccountPriceIdentityProjection, AccountPrice>> updateItems ->
 					Map<Long, SyncTask.UpdateItemDto<AccountPriceIdentityProjection, AccountPrice>> updateItemMap = updateItems.collectEntries { [(it.existingItem.id): it] }
-					morpheusContext.accountPrice.listById(updateItems.collect { it.existingItem.id } as Collection<Long>).map { AccountPrice price ->
+					morpheusContext.async.accountPrice.listById(updateItems.collect { it.existingItem.id } as Collection<Long>).map { AccountPrice price ->
 						SyncTask.UpdateItemDto<AccountPriceIdentityProjection, AccountPrice> matchItem = updateItemMap[price.id]
 						return new SyncTask.UpdateItem<AccountPrice, AccountPrice>(existingItem: price, masterItem: matchItem.masterItem)
 					}
@@ -267,9 +277,9 @@ class SizesSync {
 	}
 
 	def createPriceSets(List<AccountPriceSet> createList, Map<String, ServicePlan> priceSetPlans) {
-		Boolean priceSetsCreated = morpheusContext.accountPriceSet.create(createList).blockingGet()
+		Boolean priceSetsCreated = morpheusContext.async.accountPriceSet.create(createList).blockingGet()
 		if(priceSetsCreated) {
-			List<AccountPriceSet> tmpPriceSets = morpheusContext.accountPriceSet.listByCode(createList.collect { it.code }).distinct{it.code }.toList().blockingGet()
+			List<AccountPriceSet> tmpPriceSets = morpheusContext.async.accountPriceSet.listByCode(createList.collect { it.code }).distinct{it.code }.toList().blockingGet()
 			syncServicePlanPriceSets(tmpPriceSets, priceSetPlans)
 		}
 	}
@@ -315,16 +325,16 @@ class SizesSync {
 		syncTask.addMatchFunction { ServicePlanPriceSetIdentityProjection projection, ServicePlanPriceSet apiItem ->
 			return (projection.priceSet.code == apiItem.priceSet.code && projection.servicePlan.code == apiItem.servicePlan.code)
 		}.onDelete { List<ServicePlanPriceSetIdentityProjection> deleteList ->
-			morpheusContext.servicePlanPriceSet.remove(deleteList).blockingGet()
+			morpheusContext.async.servicePlanPriceSet.remove(deleteList).blockingGet()
 		}.onAdd { createList ->
 			while(createList.size() > 0) {
 				List chunkedList = createList.take(50)
 				createList = createList.drop(50)
-				morpheusContext.servicePlanPriceSet.create(chunkedList).blockingGet()
+				morpheusContext.async.servicePlanPriceSet.create(chunkedList).blockingGet()
 			}
 		}.withLoadObjectDetails { List<SyncTask.UpdateItemDto<ServicePlanPriceSetIdentityProjection, ServicePlanPriceSet>> updateItems ->
 			Map<Long, SyncTask.UpdateItemDto<ServicePlanPriceSetIdentityProjection, ServicePlanPriceSet>> updateItemMap = updateItems.collectEntries { [(it.existingItem.id): it] }
-			morpheusContext.servicePlanPriceSet.listById(updateItems.collect { it.existingItem.id } as Collection<Long>).map { ServicePlanPriceSet servicePlanPriceSet ->
+			morpheusContext.async.servicePlanPriceSet.listById(updateItems.collect { it.existingItem.id } as Collection<Long>).map { ServicePlanPriceSet servicePlanPriceSet ->
 				SyncTask.UpdateItemDto<ServicePlanPriceSetIdentityProjection, ServicePlanPriceSet> matchItem = updateItemMap[servicePlanPriceSet.id]
 				return new SyncTask.UpdateItem<ServicePlanPriceSet, ServicePlanPriceSet>(existingItem: servicePlanPriceSet, masterItem: matchItem.masterItem)
 			}
@@ -334,14 +344,14 @@ class SizesSync {
 	}
 
 	def createPrice(List<AccountPrice> createList) {
-		Boolean itemsCreated = morpheusContext.accountPrice.create(createList).blockingGet()
+		Boolean itemsCreated = morpheusContext.async.accountPrice.create(createList).blockingGet()
 		if(itemsCreated) {
 			List<String> priceSetCodes = createList.collect { it.code }
 			Map<String, AccountPriceSet> tmpPriceSets = morpheusContext.accountPriceSet.listByCode(priceSetCodes).toList().blockingGet().collectEntries { [(it.code): it] }
-			morpheusContext.accountPrice.listByCode(priceSetCodes).blockingSubscribe { AccountPrice price ->
+			morpheusContext.async.accountPrice.listByCode(priceSetCodes).blockingSubscribe { AccountPrice price ->
 				AccountPriceSet priceSet = tmpPriceSets[price.code]
 				if(priceSet) {
-					morpheusContext.accountPriceSet.addToPriceSet(priceSet, price).blockingGet()
+					morpheusContext.async.accountPriceSet.addToPriceSet(priceSet, price).blockingGet()
 				} else {
 					log.error("createPrice addToPriceSet: Could not find matching price set for code {}", price.code)
 				}
@@ -406,18 +416,18 @@ class SizesSync {
 		}
 
 		if(itemsToUpdate.size() > 0) {
-			Boolean itemsUpdated = morpheusContext.accountPrice.save(itemsToUpdate).blockingGet()
+			Boolean itemsUpdated = morpheusContext.async.accountPrice.save(itemsToUpdate).blockingGet()
 			if(itemsUpdated) {
 				List<String> priceSetCodes = itemsToUpdate.collect { it.code }
-				Map<String, AccountPriceSet> tmpPriceSets = morpheusContext.accountPriceSet.listByCode(priceSetCodes).toList().blockingGet().collectEntries { [(it.code): it] }
-				morpheusContext.accountPrice.listByCode(priceSetCodes).blockingSubscribe { AccountPrice price ->
+				Map<String, AccountPriceSet> tmpPriceSets = morpheusContext.async.accountPriceSet.listByCode(priceSetCodes).toList().blockingGet().collectEntries { [(it.code): it] }
+				morpheusContext.async.accountPrice.listByCode(priceSetCodes).blockingSubscribe { AccountPrice price ->
 					AccountPriceSet priceSet = tmpPriceSets[price.code]
 					BigDecimal matchedCost = updateCostMap[price.id]
 					if(matchedCost != null) {
 						price.cost = matchedCost
 					}
 					if(priceSet) {
-						morpheusContext.accountPriceSet.addToPriceSet(priceSet, price).blockingGet()
+						morpheusContext.async.accountPriceSet.addToPriceSet(priceSet, price).blockingGet()
 					} else {
 						log.error("createPrice addToPriceSet: Could not find matching price set for code {}", price.code)
 					}
