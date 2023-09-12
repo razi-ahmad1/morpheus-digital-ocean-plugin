@@ -28,6 +28,64 @@ resource "compute-server-type" "digital-ocean-linux" {
   computeType = "docker-host"
 }
 
+resource "workload-type" "docker-digitalOcean-ubuntu-20_04" {
+  code             = "docker-digitalOcean-ubuntu-20.04"
+  shortName        = "ubuntu"
+  name             = "Docker Ubuntu 20.04"
+  ports            = [22]
+  containerVersion = "20.04"
+  repositoryImage  = ""
+  imageCode        = "morpheus ubuntu 20.04"
+  entryPoint       = ""
+  mountLogs        = "/var/log"
+  statTypeCode     = "vm"
+  logTypeCode      = "ubuntu"
+  showServerLogs   = "true"
+  category         = "ubuntu"
+  cloneType        = "ubuntu"
+  priorityOrder    = 0
+  serverType       = "vm"
+  providerType     = "digitalocean"
+  checkTypeCode    = "vmCheck"
+  virtualImage = virtual-image.digitalocean-image-morpheus-ubuntu-20_04
+  containerPorts = ["ubuntu.22"]
+  provisionType = "digitalocean"
+}
+
+resource "compute-type-set" "docker-digitalOcean-ubuntu-20_04-set" {
+  code          = "docker-digitalOcean-ubuntu-20.04-set"
+  name          = "docker host"
+  workloadType = workload-type.docker-digitalOcean-ubuntu-20_04
+  computeServerType = compute-server-types.digital-ocean-linux
+  category                = "ubuntu"
+  priorityOrder           = 0
+  dynamicCount            = true
+  nodeCount               = 1
+  nodeType                = "worker"
+  canAddNodes             = true
+  installContainerRuntime = true
+  installStorageRuntime   = true
+}
+
+resource "compute-type-layout" "docker-digitalOcean-ubuntu-20_04-single" {
+  code           = "docker-digitalOcean-ubuntu-20.04-single"
+  name           = "Digital Ocean Docker Host (Ubuntu 20.04)"
+  sortOrder      = 5
+  computeVersion = "20.04"
+  description    = "This will provision a single docker host vm in digitalOcean"
+  type = compute-server-types.digital-ocean-linux
+  serverCount       = 1
+  memoryRequirement = 1024 * 1024 * 1024
+  hasAutoScale      = true
+  groupType = "docker-cluster"
+  computeServers = [
+    compute-type-set.docker-digitalOcean-ubuntu-20_04-set
+  ]
+  provisionType = "digitalocean"
+}
+
+// 18.04 no longer available
+
 resource "workload-type" "docker-digitalOcean-ubuntu-18_04" {
   code             = "docker-digitalOcean-ubuntu-18.04"
   shortName        = "ubuntu"
@@ -82,4 +140,6 @@ resource "compute-type-layout" "docker-digitalOcean-ubuntu-18_04-single" {
     compute-type-set.docker-digitalOcean-ubuntu-18_04-set
   ]
   provisionType = "digitalocean"
+  enabled = false
+  creatable = false
 }
