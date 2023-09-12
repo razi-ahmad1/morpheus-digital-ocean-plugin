@@ -11,6 +11,8 @@ resource "virtual-image" "digitalocean-image-morpheus-ubuntu-14_04" {
   isCloudInit        = true
   externalId         = "ubuntu-14-04-x64"
   osType             = "ubuntu.14.04.64"
+  active             = false
+  deleted            = true
 }
 
 resource "virtual-image" "digitalocean-image-morpheus-ubuntu-16_04" {
@@ -26,6 +28,8 @@ resource "virtual-image" "digitalocean-image-morpheus-ubuntu-16_04" {
   isCloudInit        = true
   externalId         = "ubuntu-16-04-x64"
   osType             = "ubuntu.16.04.64"
+  active             = false
+  deleted            = true
 }
 
 resource "virtual-image" "digitalocean-image-morpheus-ubuntu-18_04" {
@@ -41,6 +45,8 @@ resource "virtual-image" "digitalocean-image-morpheus-ubuntu-18_04" {
   isCloudInit        = true
   externalId         = "ubuntu-18-04-x64"
   osType             = "ubuntu.18.04.64"
+  active             = false
+  deleted            = true
 }
 
 resource "virtual-image" "digitalocean-image-morpheus-ubuntu-20_04" {
