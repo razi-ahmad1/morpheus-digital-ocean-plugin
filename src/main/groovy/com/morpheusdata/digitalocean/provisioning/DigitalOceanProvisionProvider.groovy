@@ -31,6 +31,7 @@ import com.morpheusdata.model.provisioning.HostRequest
 import com.morpheusdata.model.provisioning.WorkloadRequest
 import com.morpheusdata.model.provisioning.UsersConfiguration
 import com.morpheusdata.request.ResizeRequest
+import com.morpheusdata.response.PrepareWorkloadResponse
 import com.morpheusdata.response.ProvisionResponse
 import com.morpheusdata.response.ServiceResponse
 import groovy.util.logging.Slf4j
@@ -356,9 +357,12 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider implements
 	}
 
 	@Override
-	ServiceResponse prepareWorkload(Workload workload, WorkloadRequest workloadRequest, Map opts) {
+	ServiceResponse<PrepareWorkloadResponse> prepareWorkload(Workload workload, WorkloadRequest workloadRequest, Map opts) {
 		log.debug("prepareWorkload, workload: ${workload}, workloadRequest: ${workloadRequest}, opts: ${opts}")
-		return ServiceResponse.success()
+		ServiceResponse<PrepareWorkloadResponse> resp = new ServiceResponse<>()
+		resp.data = new PrepareWorkloadResponse(workload: workload, options: [sendIp: false])
+		resp.success = true
+		return resp
 	}
 
 	@Override
