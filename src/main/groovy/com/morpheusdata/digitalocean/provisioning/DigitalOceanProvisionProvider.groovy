@@ -14,7 +14,6 @@ import com.morpheusdata.model.ComputeServer
 import com.morpheusdata.model.ComputeServerInterfaceType
 import com.morpheusdata.model.ComputeTypeLayout
 import com.morpheusdata.model.ComputeTypeSet
-import com.morpheusdata.model.ContainerType
 import com.morpheusdata.model.HostType
 import com.morpheusdata.model.Icon
 import com.morpheusdata.model.ImageType
@@ -27,6 +26,7 @@ import com.morpheusdata.model.VirtualImage
 import com.morpheusdata.model.Workload
 import com.morpheusdata.model.Cloud
 import com.morpheusdata.model.KeyPair
+import com.morpheusdata.model.WorkloadType
 import com.morpheusdata.model.provisioning.HostRequest
 import com.morpheusdata.model.provisioning.WorkloadRequest
 import com.morpheusdata.model.provisioning.UsersConfiguration
@@ -522,10 +522,10 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider implements
 			VirtualImage virtualImage
 			Long computeTypeSetId = server.typeSet?.id
 			if(computeTypeSetId) {
-				ComputeTypeSet computeTypeSet = morpheus.computeTypeSet.get(computeTypeSetId).blockingGet()
-				if(computeTypeSet.containerType) {
-					ContainerType containerType = morpheus.containerType.get(computeTypeSet.containerType.id).blockingGet()
-					virtualImage = containerType.virtualImage
+				ComputeTypeSet computeTypeSet = morpheus.services.computeTypeSet.get(computeTypeSetId)
+				if(computeTypeSet.workloadType) {
+					WorkloadType workloadType = morpheus.services.workloadType.get(computeTypeSet.workloadType.id)
+					virtualImage = workloadType?.virtualImage
 				}
 			}
 			if(!virtualImage) {
