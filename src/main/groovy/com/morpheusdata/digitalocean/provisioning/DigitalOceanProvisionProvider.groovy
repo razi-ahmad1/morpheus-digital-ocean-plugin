@@ -429,7 +429,7 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider implements
 
 		// Now.. ready to create it in DO
 		def dropletConfig = [
-			'name'              : workload.server.getExternalHostname(),
+			'name'              : cleanInstanceName(workload.server.name),
 			'region'            : cloud.configMap.datacenter,
 			'size'              : workload.plan.externalId,
 			'image'             : imageId,
