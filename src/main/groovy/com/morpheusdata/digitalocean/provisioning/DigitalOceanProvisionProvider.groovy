@@ -1,5 +1,6 @@
 package com.morpheusdata.digitalocean.provisioning
 
+import com.morpheusdata.PrepareHostResponse
 import com.morpheusdata.core.providers.ComputeProvisionProvider
 import com.morpheusdata.core.providers.HostProvisionProvider
 import com.morpheusdata.core.providers.VmProvisionProvider
@@ -351,7 +352,7 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider implements
 	}
 
 	@Override
-	ServiceResponse validateDockerHost(ComputeServer server, Map opts) {
+	ServiceResponse validateHost(ComputeServer server, Map opts) {
 		log.debug("validateDockerHost, server: ${server}, opts: ${opts}")
 		return ServiceResponse.success()
 	}
@@ -514,10 +515,12 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider implements
 	}
 
 	@Override
-	ServiceResponse prepareHost(ComputeServer server, HostRequest hostRequest, Map opts) {
+	ServiceResponse<PrepareHostResponse> prepareHost(ComputeServer server, HostRequest hostRequest, Map opts) {
 		log.debug("prepareHost: ${server} ${hostRequest} ${opts}")
 
-		def rtn = [success: false, msg: null]
+		def prepareResponse = new PrepareHostResponse(computeServer: server, disableCloudInit: false, options: [sendIp: false])
+		ServiceResponse<PrepareHostResponse> rtn = ServiceResponse.prepare(prepareResponse)
+
 		try {
 			VirtualImage virtualImage
 			Long computeTypeSetId = server.typeSet?.id
@@ -540,7 +543,7 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider implements
 			log.error("${rtn.msg}, ${e}", e)
 
 		}
-		new ServiceResponse(rtn.success, rtn.msg, null, null)
+		return rtn
 	}
 
 	@Override
