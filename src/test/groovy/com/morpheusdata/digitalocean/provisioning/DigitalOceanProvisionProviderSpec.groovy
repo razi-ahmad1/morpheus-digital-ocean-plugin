@@ -21,11 +21,11 @@ import com.morpheusdata.model.provisioning.WorkloadRequest
 import com.morpheusdata.request.ResizeRequest
 import com.morpheusdata.response.ServiceResponse
 import groovy.json.JsonSlurper
-import io.reactivex.Observable
-import io.reactivex.ObservableEmitter
-import io.reactivex.ObservableOnSubscribe
-import io.reactivex.Single
-import io.reactivex.annotations.NonNull
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.ObservableEmitter
+import io.reactivex.rxjava3.core.ObservableOnSubscribe
+import io.reactivex.rxjava3.core.Single
+import io.reactivex.rxjava3.core.annotations.NonNull
 import org.apache.http.client.methods.HttpPost
 import spock.lang.Shared
 import spock.lang.Specification

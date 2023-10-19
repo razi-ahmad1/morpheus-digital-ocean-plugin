@@ -10,11 +10,11 @@ import com.morpheusdata.core.Plugin
 import com.morpheusdata.model.Cloud
 import com.morpheusdata.model.VirtualImage
 import com.morpheusdata.model.projection.VirtualImageIdentityProjection
-import io.reactivex.Observable
-import io.reactivex.ObservableEmitter
-import io.reactivex.ObservableOnSubscribe
-import io.reactivex.Single
-import io.reactivex.annotations.NonNull
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.ObservableEmitter
+import io.reactivex.rxjava3.core.ObservableOnSubscribe
+import io.reactivex.rxjava3.core.Single
+import io.reactivex.rxjava3.core.annotations.NonNull
 import spock.lang.Ignore
 import spock.lang.Shared
 import spock.lang.Specification

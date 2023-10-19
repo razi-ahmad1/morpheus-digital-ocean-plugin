@@ -20,7 +20,7 @@ import com.morpheusdata.model.Cloud
 import com.morpheusdata.model.ServicePlan
 import com.morpheusdata.model.projection.ServicePlanIdentityProjection
 import groovy.util.logging.Slf4j
-import io.reactivex.Observable
+import io.reactivex.rxjava3.core.Observable
 
 @Slf4j
 class SizesSync {

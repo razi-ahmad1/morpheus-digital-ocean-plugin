@@ -13,7 +13,7 @@ import com.morpheusdata.model.ImageType
 import com.morpheusdata.model.VirtualImage
 import com.morpheusdata.model.projection.VirtualImageIdentityProjection
 import groovy.util.logging.Slf4j
-import io.reactivex.Observable
+import io.reactivex.rxjava3.core.Observable
 
 @Slf4j
 class ImagesSync {
