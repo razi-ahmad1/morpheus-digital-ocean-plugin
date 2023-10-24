@@ -179,7 +179,7 @@ class DigitalOceanCloudProvider implements CloudProvider {
 
 				//docker
 				new ComputeServerType(code: LINUX_VIRTUAL_IMAGE_CODE, name: 'DigitalOcean Docker Host', description: '', platform: PlatformType.linux, nodeType:'morpheus-node',
-						enabled: true, selectable: false, externalDelete: true, managed: true, controlPower: true, controlSuspend: false, creatable: true, computeService: null, containerEngine: "docker", containerMode: "docker",
+						enabled: true, selectable: false, externalDelete: true, managed: true, controlPower: true, controlSuspend: false, creatable: true, computeService: null, containerEngine: "docker",
 						displayOrder: 16, hasAutomation: true, reconfigureSupported: true, provisionTypeCode: 'digitalocean',
 						containerHypervisor: true, bareMetalHost: false, vmHypervisor: false, agentType: ComputeServerType.AgentType.host, clusterType: ComputeServerType.ClusterType.docker,
 						computeTypeCode: 'docker-host',
