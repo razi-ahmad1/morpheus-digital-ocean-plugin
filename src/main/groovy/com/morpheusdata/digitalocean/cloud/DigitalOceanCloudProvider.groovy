@@ -153,7 +153,7 @@ class DigitalOceanCloudProvider implements CloudProvider {
 				fieldLabel: 'Datacenter',
 				required: true,
 				inputType: OptionType.InputType.SELECT,
-				dependsOn: 'config.apiKey, apiKey, credential',
+				dependsOn: 'config.username, config.apiKey, credential.type, credential.username, credential.password',
 				fieldContext: 'config'
 		)
 		return options
