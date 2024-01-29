@@ -46,13 +46,12 @@ class DigitalOceanPlugin extends Plugin {
 	}
 
 	Map getAuthConfig(Cloud cloud) {
-		log.debug "getAuthConfig: ${cloud}"
 		def rtn = [:]
 
 		if(!cloud.accountCredentialLoaded) {
 			AccountCredential accountCredential
 			try {
-				accountCredential = this.morpheus.cloud.loadCredentials(cloud.id).blockingGet()
+				accountCredential = this.morpheus.services.cloud.loadCredentials(cloud.id)
 			} catch(e) {
 				// If there is no credential on the cloud, then this will error
 			}
@@ -82,7 +81,6 @@ class DigitalOceanPlugin extends Plugin {
 
 	// get auth config from credential args, usually used for API request before a cloud is created
 	Map getAuthConfig(Map args) {
-		log.debug("getAuthConfig from args $args, credential: $args.credential")
 		def rtn = [:]
 		def accountCredentialData
 		def username
@@ -91,7 +89,7 @@ class DigitalOceanPlugin extends Plugin {
 		if(args.credential && args.credential.type != 'local') {
 			Map accountCredential
 			try {
-				accountCredential = morpheus.accountCredential.loadCredentialConfig(args.credential, [:]).blockingGet()
+				accountCredential = morpheus.services.accountCredential.loadCredentialConfig(args.credential, [:])
 			} catch(e) {
 				// If there is no credential in the args, then this will error
 			}
