@@ -249,18 +249,18 @@ class DigitalOceanCloudProvider implements CloudProvider {
 	}
 
 	@Override
-	ServiceResponse validate(Cloud zoneInfo, ValidateCloudRequest validateCloudRequest) {
+	ServiceResponse validate(Cloud cloud, ValidateCloudRequest validateCloudRequest) {
 		DigitalOceanApiService apiService = new DigitalOceanApiService()
-		log.debug("validating Cloud: ${zoneInfo.code}, ${validateCloudRequest.credentialType} ${validateCloudRequest.credentialUsername} ${validateCloudRequest.credentialPassword}")
-		if (!zoneInfo.configMap.datacenter) {
+		log.debug("validating Cloud: ${cloud.code}, ${validateCloudRequest.credentialType} ${validateCloudRequest.credentialUsername} ${validateCloudRequest.credentialPassword}")
+		if (!cloud.configMap.datacenter) {
 			return new ServiceResponse(success: false, msg: 'Choose a datacenter')
 		}
 		def apiKey
 		def username
 
 		if(validateCloudRequest.credentialType == 'local') {
-			apiKey = zoneInfo.configMap.apiKey
-			username = zoneInfo.configMap.username
+			apiKey = cloud.configMap.apiKey
+			username = cloud.configMap.username
 		} else if (validateCloudRequest.credentialType && validateCloudRequest.credentialType.isNumber()) {
 			def credentialId = validateCloudRequest.credentialType.toLong()
 			AccountCredential accountCredential = morpheusContext.accountCredential.get(credentialId).blockingGet()
