@@ -51,7 +51,7 @@ class DigitalOceanPlugin extends Plugin {
 		if(!cloud.accountCredentialLoaded) {
 			AccountCredential accountCredential
 			try {
-				accountCredential = this.morpheus.services.cloud.loadCredentials(cloud.id)
+				accountCredential = this.morpheus.services.accountCredential.loadCredentials(cloud)
 			} catch(e) {
 				// If there is no credential on the cloud, then this will error
 			}
