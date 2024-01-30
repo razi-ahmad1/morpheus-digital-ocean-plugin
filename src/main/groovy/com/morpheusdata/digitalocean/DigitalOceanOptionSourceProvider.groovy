@@ -1,5 +1,6 @@
 package com.morpheusdata.digitalocean
 
+import com.morpheusdata.core.data.DataQuery
 import com.morpheusdata.digitalocean.DigitalOceanPlugin
 import com.morpheusdata.digitalocean.DigitalOceanApiService
 import com.morpheusdata.core.MorpheusContext
@@ -48,12 +49,24 @@ class DigitalOceanOptionSourceProvider implements OptionSourceProvider {
 	def digitalOceanDataCenters(args) {
 		log.debug("datacenters: ${args}")
 		List datacenters = []
+		Long cloudId = args.getAt(0)?.zoneId?.toLong()
+		String paramsApiKey = plugin.getAuthConfig(args.getAt(0) as Map).doApiKey
+		Cloud cloud = null
 
 		// if we know the cloud then load from cached data
-		if(args.getAt(0)?.zoneId) {
-			Long cloudId = args.getAt(0).zoneId.toLong()
-			morpheusContext.referenceData.listByCategory("digitalocean.${cloudId}.datacenter").blockingSubscribe { ReferenceDataSyncProjection refData ->
+		if(cloudId) {
+			cloud = morpheus.services.cloud.get(cloudId)
+			morpheus.services.referenceData.list(new DataQuery().withFilter("category", "digitalocean.${cloudId}.datacenter")).each { ReferenceDataSyncProjection refData ->
 				datacenters << [name: refData.name, value: refData.externalId]
+			}
+		}
+
+		// check if auth config has changed and force a refresh of the datacenters
+		if(cloud) {
+			def cloudApiKey = plugin.getAuthConfig(cloud).doApiKey
+			if(cloudApiKey != paramsApiKey) {
+				log.debug("API key has changed, clearing cached datacenters")
+				datacenters = []
 			}
 		}
 
@@ -62,9 +75,9 @@ class DigitalOceanOptionSourceProvider implements OptionSourceProvider {
 			log.debug("Datacenters not cached, loading from API")
 			DigitalOceanApiService apiService = new DigitalOceanApiService()
 
-			String apiKey = plugin.getAuthConfig(args.getAt(0) as Map).doApiKey
-			if(apiKey) {
-				def response = apiService.listRegions(apiKey)
+
+			if(paramsApiKey) {
+				def response = apiService.listRegions(paramsApiKey)
 				if(response.success) {
 					datacenters = response.data?.collect { [name: it.name, value: it.slug] }
 				}
