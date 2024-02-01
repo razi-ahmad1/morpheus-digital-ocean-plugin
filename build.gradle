@@ -10,7 +10,7 @@ buildscript {
 	dependencies {
 		classpath "com.github.jengelman.gradle.plugins:shadow:6.0.0"
 		classpath "com.bertramlabs.plugins:asset-pipeline-gradle:$assetPipelineVersion"
-		classpath "com.morpheusdata:morpheus-plugin-gradle:$morphPluginApiVersion"
+		classpath "com.morpheusdata:morpheus-plugin-gradle:$morphPluginGradleVersion"
 	}
 }
 
