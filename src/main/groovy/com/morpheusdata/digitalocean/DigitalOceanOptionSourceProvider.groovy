@@ -64,7 +64,8 @@ class DigitalOceanOptionSourceProvider implements OptionSourceProvider {
 		// check if auth config has changed and force a refresh of the datacenters
 		if(cloud) {
 			def cloudApiKey = plugin.getAuthConfig(cloud).doApiKey
-			if(cloudApiKey != paramsApiKey) {
+			log.debug("api key: ${cloudApiKey} vs ${paramsApiKey}")
+			if(cloudApiKey != paramsApiKey && paramsApiKey?.startsWith("******") == false) {
 				log.debug("API key has changed, clearing cached datacenters")
 				datacenters = []
 			}
