@@ -62,7 +62,7 @@ resource "compute-type-set" "kubernetes-1_27-ubuntu-20_04-digitalocean-amd64-set
   code = "kubernetes-1.27-ubuntu-20.04-digitalocean-amd64-set"
   name = "kubernetes master"
   workloadType = workload-type.kubernetes-1_27-ubuntu-20_04-digitalocean-amd64
-  computeServerType = compute-server-type.digitaloceanKubeMaster
+  computeServerType = "digitaloceanKubeMaster"
   category = "ubuntu"
   priorityOrder = 0
   dynamicCount = false

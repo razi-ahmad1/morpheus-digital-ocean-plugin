@@ -59,7 +59,7 @@ resource "workload-type" "kubernetes-1_28-ubuntu-22_04-worker-digitalocean-amd64
 resource "compute-type-set" "kubernetes-1_28-ubuntu-22_04-digitalocean-amd64-set" {
   code             = "kubernetes-1.28-ubuntu-22.04-digitalocean-amd64-set"
   name             = "kubernetes master"
-  workloadType    = workload-type.kubernetes-1_28-ubuntu-22_04-worker-digitalocean-amd64
+  workloadType      = workload-type.kubernetes-1_28-ubuntu-22_04-digitalocean-amd64
   computeServerType = compute-server-type.digitaloceanKubeMaster
   category         = "ubuntu"
   priorityOrder    = 0
