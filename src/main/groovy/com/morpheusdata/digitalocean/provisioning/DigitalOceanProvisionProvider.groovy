@@ -325,6 +325,15 @@ class DigitalOceanProvisionProvider extends AbstractProvisionProvider implements
 		return true
 	}
 
+	/**
+	 * Specifies which deployment service should be used with this provider. In this case we are using the vm service
+	 * @return the name of the service
+	 */
+	@Override
+	String getDeployTargetService() {
+		return "vmDeployTargetService"
+	}
+
 	@Override
 	String getNodeFormat() {
 		return "vm"
