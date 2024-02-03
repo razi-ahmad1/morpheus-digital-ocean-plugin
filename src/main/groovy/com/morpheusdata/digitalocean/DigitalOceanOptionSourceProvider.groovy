@@ -80,7 +80,12 @@ class DigitalOceanOptionSourceProvider implements OptionSourceProvider {
 			if(paramsApiKey) {
 				def response = apiService.listRegions(paramsApiKey)
 				if(response.success) {
-					datacenters = response.data?.collect { [name: it.name, value: it.slug] }
+					datacenters = []
+					response.data?.each {
+						if(it.available == true) {
+							datacenters << [name: it.name, value: it.slug]
+						}
+					}
 				}
 			} else {
 				log.debug("API key not supplied, failed to load datacenters")
