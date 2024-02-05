@@ -51,7 +51,13 @@ class DigitalOceanPlugin extends Plugin {
 		if(!cloud.accountCredentialLoaded) {
 			AccountCredential accountCredential
 			try {
-				accountCredential = this.morpheus.services.accountCredential.loadCredentials(cloud)
+				if(!cloud.account?.id || !cloud.owner?.id) {
+					log.debug("cloud account or owner id is missing, loading cloud object")
+					// in some cases marshalling the cloud doesn't include the account and owner, in those cases
+					// we need to load the cloud to include those elements.
+					cloud = morpheus.services.cloud.get(cloud.id)
+				}
+				accountCredential = morpheus.services.accountCredential.loadCredentials(cloud)
 			} catch(e) {
 				// If there is no credential on the cloud, then this will error
 			}
