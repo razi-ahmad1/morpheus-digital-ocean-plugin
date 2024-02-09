@@ -22,7 +22,8 @@ resource "workload-type" "kubernetes-1_27-ha-master-ubuntu-20_04-digitalocean-am
   provisionType    = "digitalocean"
   scripts          = [
     "setup-disks-v1", "kubernetes-1-27-ubuntu-install-v1", "kubernetes-1-27-kubeadm-cluster-master-init-v1",
-    "kubernetes-1-27-kubeadm-cluster-master-setup-v1", "kube-kubeadm-cluster-shared-key"
+    "kubernetes-1-27-kubeadm-cluster-master-setup-v1", "kube-kubeadm-cluster-shared-key", "k8-config-save",
+    "k8-cypher"
   ]
   templates = []
 }
@@ -50,11 +51,10 @@ resource "workload-type" "kubernetes-1_27-ha-add-master-ubuntu-20_04-digitalocea
   containerPorts   = ["ubuntu.22"]
   provisionType    = "digitalocean"
   scripts          = [
-    "setup-disks-v1", "kube-kubeadm-cluster-shared-key", "kubernetes-1-27-ubuntu-install-v1",
-    "kube-kubeadm-cluster-add-master-certs", "kubernetes-1-27-kubeadm-cluster-add-master-setup-v1",
-    "kubernetes-1-27-kubeadm-cluster-add-master-init-v1"
+    "setup-disks-v1", "kube-kubeadm-cluster-shared-key", "kubernetes-1-27-ubuntu-install-v2", "k8-config-fetch",
+    "kubernetes-1-27-kubeadm-cluster-add-master-setup-v1", "kubernetes-1-27-kubeadm-cluster-add-master-init-v1"
   ]
-  templates = []
+  templates = ["k8-cypher"]
 }
 
 # master set

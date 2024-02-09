@@ -23,7 +23,8 @@ resource "workload-type" "kubernetes-1_28-ha-master-ubuntu-22_04-digitalocean-am
   scripts          = [
     "setup-disks-v1", "kubernetes-1-28-ubuntu-install-v1", "kubernetes-1-28-kubeadm-cluster-master-init-v1",
     "kubernetes-1-28-kubeadm-cluster-master-setup-v1", "kube-kubeadm-cluster-shared-key",
-    "kube-ectd-encrypt-install-add-master-script-v1"
+    "kube-ectd-encrypt-install-add-master-script-v1", "k8-config-save",
+    "k8-cypher"
   ]
   templates = ["kubernetes-etcd-encrypt-install-master"]
 }
@@ -51,11 +52,11 @@ resource "workload-type" "kubernetes-1_28-ha-add-master-ubuntu-22_04-digitalocea
   containerPorts   = ["ubuntu.22"]
   provisionType    = "digitalocean"
   scripts          = [
-    "setup-disks-v1", "kube-kubeadm-cluster-shared-key", "kubernetes-1-28-ubuntu-install-v1",
-    "kube-kubeadm-cluster-add-master-certs", "kubernetes-1-28-kubeadm-cluster-add-master-setup-v1",
-    "kubernetes-kubeadm-cluster-1-28-add-master-init-v1", "kube-ectd-encrypt-install-add-master-script-v1"
+    "setup-disks-v1", "kube-kubeadm-cluster-shared-key", "kubernetes-1-28-ubuntu-install-v2", "k8-config-fetch",
+    "kubernetes-1-28-kubeadm-cluster-add-master-setup-v1", "kubernetes-kubeadm-cluster-1-28-add-master-init-v1",
+    "kube-ectd-encrypt-install-add-master-script-v1"
   ]
-  templates = ["kubernetes-etcd-encrypt-install-master"]
+  templates = ["k8-cypher", "kubernetes-etcd-encrypt-install-master"]
 }
 
 # master set
