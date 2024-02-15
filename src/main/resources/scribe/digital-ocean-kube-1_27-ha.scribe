@@ -113,7 +113,7 @@ resource "compute-type-layout" "kubernetes-1_27-ubuntu-20_04-digitalocean-amd64"
   code = "kubernetes-1.27-ubuntu-20.04-digitalocean-amd64"
   enabled = true
   name = "MKS Kubernetes 1.27 HA Cluster on Ubuntu 20.04"
-  sortOrder = 105
+  sortOrder = 120
   computeVersion = "20.04"
   clusterVersion = "1.27.x"
   description = "provision a high availability kubernetes 1.27 cluster on ubuntu 20.04"
