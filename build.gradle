@@ -52,6 +52,9 @@ dependencies {
 	testImplementation 'io.reactivex.rxjava3:rxjava:3.1.8'
 	testImplementation "org.slf4j:slf4j-nop:$slf4jVersion"
 	testImplementation "org.slf4j:slf4j-parent:$slf4jVersion"
+	testImplementation("com.bertramlabs.plugins:karman-core:2.0.9") {
+		exclude module: 'groovy-all'
+	}
 
 	testImplementation "org.codehaus.groovy:groovy-all:$groovyVersion"
 	testImplementation 'net.bytebuddy:byte-buddy:1.9.3'
