@@ -51,9 +51,9 @@ resource "compute-type-layout" "kubernetes-1.29-ubuntu-22.04-digitalocean-amd64"
   containerRuntime = "containerd"
   networkRuntime = "calico"
   computeServers = [
-    compute-type-set.kubernetes-ha-master-ubuntu-22.04-digiocean-amd64-set,
-    compute-type-set.kubernetes-ha-add-master-ubuntu-22.04-digiocean-amd64-set,
-    compute-type-set.kubernetes-ha-final-master-ubuntu-22.04-digiocean-amd64-set,
+    compute-type-set.kubernetes-ha-master-ubuntu-22.04-digitalocean-amd64-set,
+    compute-type-set.kubernetes-ha-add-master-ubuntu-22.04-digitalocean-amd64-set,
+    compute-type-set.kubernetes-ha-final-master-ubuntu-22.04-digitalocean-amd64-set,
     compute-type-set.kubernetes-ubuntu-22.04-worker-digitalocean-amd64-set
   ]
   groupType = "kubernetes-cluster"

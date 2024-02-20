@@ -59,8 +59,8 @@ resource "workload-type" "kubernetes-ha-add-master-ubuntu-22.04-digitalocean-amd
 
 
 # master set
-resource "compute-type-set" "kubernetes-ha-master-ubuntu-22.04-digiocean-amd64-set" {
-  code             = "kubernetes-ha-master-ubuntu-22.04-digiocean-amd64-set"
+resource "compute-type-set" "kubernetes-ha-master-ubuntu-22.04-digitalocean-amd64-set" {
+  code             = "kubernetes-ha-master-ubuntu-22.04-digitalocean-amd64-set"
   name             = "kubernetes master"
   workloadType    = workload-type.kubernetes-ha-master-ubuntu-22.04-digitalocean-amd64
   computeServerType= "digitaloceanKubeMaster"
@@ -76,8 +76,8 @@ resource "compute-type-set" "kubernetes-ha-master-ubuntu-22.04-digiocean-amd64-s
 }
 
 # add master set
-resource "compute-type-set" "kubernetes-ha-add-master-ubuntu-22.04-digiocean-amd64-set" {
-  code             = "kubernetes-ha-add-master-ubuntu-22.04-digiocean-amd64-set"
+resource "compute-type-set" "kubernetes-ha-add-master-ubuntu-22.04-digitalocean-amd64-set" {
+  code             = "kubernetes-ha-add-master-ubuntu-22.04-digitalocean-amd64-set"
   name             = "kubernetes master"
   workloadType    = workload-type.kubernetes-ha-add-master-ubuntu-22.04-digitalocean-amd64
   computeServerType= "digitaloceanKubeMaster"
@@ -93,8 +93,8 @@ resource "compute-type-set" "kubernetes-ha-add-master-ubuntu-22.04-digiocean-amd
 }
 
 # add final setup
-resource "compute-type-set" "kubernetes-ha-final-master-ubuntu-22.04-digiocean-amd64-set" {
-  code             = "kubernetes-ha-final-master-ubuntu-22.04-digiocean-amd64-set"
+resource "compute-type-set" "kubernetes-ha-final-master-ubuntu-22.04-digitalocean-amd64-set" {
+  code             = "kubernetes-ha-final-master-ubuntu-22.04-digitalocean-amd64-set"
   name             = "kubernetes master"
   workloadType    = workload-type.kubernetes-ha-add-master-ubuntu-22.04-digitalocean-amd64
   computeServerType= "digitaloceanKubeMaster"
