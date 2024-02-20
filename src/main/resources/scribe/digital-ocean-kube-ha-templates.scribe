@@ -54,7 +54,7 @@ resource "workload-type" "kubernetes-ha-add-master-ubuntu-22.04-digitalocean-amd
     "setup-disks-v1", "kube-kubeadm-cluster-shared-key", "kube-ubuntu-22-setup-script-v1", "k8-config-fetch",
     "kubernetes-kubeadm-cluster-add-master-init-v1", "kube-ectd-encrypt-install-add-master-script-v1"
   ]
-  templates = ["k8-cypher", "kubeadm-cluster-add-master-init","kubernetes-etcd-encrypt-install-master"]
+  templates = ["k8-cypher", "do-kubeadm-cluster-add-master-init","kubernetes-etcd-encrypt-install-master"]
 }
 
 
