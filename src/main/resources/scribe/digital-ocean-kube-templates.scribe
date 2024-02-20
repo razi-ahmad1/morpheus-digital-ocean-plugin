@@ -1,5 +1,5 @@
-resource "workload-type" "kubernetes-ubuntu-22.04-digitalocean-amd64" {
-  code             = "kubernetes-ubuntu-22.04-digitalocean-amd64"
+resource "workload-type" "kubernetes-ubuntu-22_04-digitalocean-amd64" {
+  code             = "kubernetes-ubuntu-22_04-digitalocean-amd64"
   shortName        = "kubernetes-ubuntu"
   name             = "DigitalOcean Kubernetes Cluster on Ubuntu 22.04"
   containerVersion = "22.04"
@@ -26,8 +26,8 @@ resource "workload-type" "kubernetes-ubuntu-22.04-digitalocean-amd64" {
 }
 
 # worker vm
-resource "workload-type" "kubernetes-ubuntu-22.04-worker-digitalocean-amd64" {
-  code             = "kubernetes-ubuntu-22.04-worker-digitalocean-amd64"
+resource "workload-type" "kubernetes-ubuntu-22_04-worker-digitalocean-amd64" {
+  code             = "kubernetes-ubuntu-22_04-worker-digitalocean-amd64"
   shortName        = "kubernetes-worker-ubuntu"
   name             = "DigitalOcean Kubernetes Worker on Ubuntu 22.04"
   containerVersion = "22.04"
@@ -54,10 +54,10 @@ resource "workload-type" "kubernetes-ubuntu-22.04-worker-digitalocean-amd64" {
 }
 
 # master set
-resource "compute-type-set" "kubernetes-ubuntu-22.04-digitalocean-amd64-set" {
-  code             = "kubernetes-ubuntu-22.04-digitalocean-amd64-set"
+resource "compute-type-set" "kubernetes-ubuntu-22_04-digitalocean-amd64-set" {
+  code             = "kubernetes-ubuntu-22_04-digitalocean-amd64-set"
   name             = "kubernetes master"
-  workloadType      = workload-type.kubernetes-ubuntu-22.04-digitalocean-amd64
+  workloadType      = workload-type.kubernetes-ubuntu-22_04-digitalocean-amd64
   computeServerType = compute-server-type.digitaloceanKubeMaster
   category         = "ubuntu"
   priorityOrder    = 0
@@ -70,10 +70,10 @@ resource "compute-type-set" "kubernetes-ubuntu-22.04-digitalocean-amd64-set" {
 }
 
 # worker set
-resource "compute-type-set" "kubernetes-ubuntu-22.04-worker-digitalocean-amd64-set" {
-  code             = "kubernetes-ubuntu-22.04-worker-digitalocean-amd64-set"
+resource "compute-type-set" "kubernetes-ubuntu-22_04-worker-digitalocean-amd64-set" {
+  code             = "kubernetes-ubuntu-22_04-worker-digitalocean-amd64-set"
   name             = "kubernetes worker"
-  containerType    = workload-type.kubernetes-ubuntu-22.04-worker-digitalocean-amd64
+  containerType    = workload-type.kubernetes-ubuntu-22_04-worker-digitalocean-amd64
   computeServerType= "digitaloceanKubeWorker"
   category         = "ubuntu"
   priorityOrder    = 1

@@ -1,6 +1,6 @@
 # master
-resource "workload-type" "kubernetes-ha-master-ubuntu-22.04-digitalocean-amd64" {
-  code             = "kubernetes-ha-master-ubuntu-22.04-digitalocean-amd64"
+resource "workload-type" "kubernetes-ha-master-ubuntu-22_04-digitalocean-amd64" {
+  code             = "kubernetes-ha-master-ubuntu-22_04-digitalocean-amd64"
   shortName        = "kubernetes-ubuntu"
   name             = "DO Kubernetes HA Master Cluster on Ubuntu 22.04"
   containerVersion = "22.04"
@@ -25,12 +25,12 @@ resource "workload-type" "kubernetes-ha-master-ubuntu-22.04-digitalocean-amd64" 
     "kubernetes-ectd-encrypt-install-master-script-v1", "kube-kubeadm-cluster-shared-key ",
     "k8-config-save"
   ]
-  templates = ["kubeadm-cluster-master-init","k8-cypher","kubernetes-etcd-encrypt-install-master"]
+  templates = ["do-kubeadm-cluster-master-init","k8-cypher","kubernetes-etcd-encrypt-install-master", "replace-external-ip"]
 }
 
 # add master vm
-resource "workload-type" "kubernetes-ha-add-master-ubuntu-22.04-digitalocean-amd64" {
-  code             = "kubernetes-ha-add-master-ubuntu-22.04-digitalocean-amd64"
+resource "workload-type" "kubernetes-ha-add-master-ubuntu-22_04-digitalocean-amd64" {
+  code             = "kubernetes-ha-add-master-ubuntu-22_04-digitalocean-amd64"
   shortName        = "kubernetes-ubuntu"
   name             = "DO Kubernetes HA Add Master Cluster on Ubuntu 22.04"
   containerVersion = "22.04"
@@ -54,15 +54,15 @@ resource "workload-type" "kubernetes-ha-add-master-ubuntu-22.04-digitalocean-amd
     "setup-disks-v1", "kube-kubeadm-cluster-shared-key", "kube-ubuntu-22-setup-script-v1", "k8-config-fetch",
     "kubernetes-kubeadm-cluster-add-master-init-v1", "kube-ectd-encrypt-install-add-master-script-v1"
   ]
-  templates = ["k8-cypher", "do-kubeadm-cluster-add-master-init","kubernetes-etcd-encrypt-install-master"]
+  templates = ["k8-cypher", "do-kubeadm-cluster-add-master-init","kubernetes-etcd-encrypt-install-master", "replace-external-ip"]
 }
 
 
 # master set
-resource "compute-type-set" "kubernetes-ha-master-ubuntu-22.04-digitalocean-amd64-set" {
-  code             = "kubernetes-ha-master-ubuntu-22.04-digitalocean-amd64-set"
+resource "compute-type-set" "kubernetes-ha-master-ubuntu-22_04-digitalocean-amd64-set" {
+  code             = "kubernetes-ha-master-ubuntu-22_04-digitalocean-amd64-set"
   name             = "kubernetes master"
-  workloadType    = workload-type.kubernetes-ha-master-ubuntu-22.04-digitalocean-amd64
+  workloadType    = workload-type.kubernetes-ha-master-ubuntu-22_04-digitalocean-amd64
   computeServerType= "digitaloceanKubeMaster"
   category         = "ubuntu"
   priorityOrder    = 0
@@ -76,10 +76,10 @@ resource "compute-type-set" "kubernetes-ha-master-ubuntu-22.04-digitalocean-amd6
 }
 
 # add master set
-resource "compute-type-set" "kubernetes-ha-add-master-ubuntu-22.04-digitalocean-amd64-set" {
-  code             = "kubernetes-ha-add-master-ubuntu-22.04-digitalocean-amd64-set"
+resource "compute-type-set" "kubernetes-ha-add-master-ubuntu-22_04-digitalocean-amd64-set" {
+  code             = "kubernetes-ha-add-master-ubuntu-22_04-digitalocean-amd64-set"
   name             = "kubernetes master"
-  workloadType    = workload-type.kubernetes-ha-add-master-ubuntu-22.04-digitalocean-amd64
+  workloadType    = workload-type.kubernetes-ha-add-master-ubuntu-22_04-digitalocean-amd64
   computeServerType= "digitaloceanKubeMaster"
   category         = "ubuntu"
   priorityOrder    = 1
@@ -93,10 +93,10 @@ resource "compute-type-set" "kubernetes-ha-add-master-ubuntu-22.04-digitalocean-
 }
 
 # add final setup
-resource "compute-type-set" "kubernetes-ha-final-master-ubuntu-22.04-digitalocean-amd64-set" {
-  code             = "kubernetes-ha-final-master-ubuntu-22.04-digitalocean-amd64-set"
+resource "compute-type-set" "kubernetes-ha-final-master-ubuntu-22_04-digitalocean-amd64-set" {
+  code             = "kubernetes-ha-final-master-ubuntu-22_04-digitalocean-amd64-set"
   name             = "kubernetes master"
-  workloadType    = workload-type.kubernetes-ha-add-master-ubuntu-22.04-digitalocean-amd64
+  workloadType    = workload-type.kubernetes-ha-add-master-ubuntu-22_04-digitalocean-amd64
   computeServerType= "digitaloceanKubeMaster"
   category         = "ubuntu"
   priorityOrder    = 2
