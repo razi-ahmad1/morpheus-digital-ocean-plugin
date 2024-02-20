@@ -1,5 +1,5 @@
 # master
-resource "workload-type" "kubernetes-ha-master-ubuntu-22.04-digitalocean-amd6" {
+resource "workload-type" "kubernetes-ha-master-ubuntu-22.04-digitalocean-amd64" {
   code             = "kubernetes-ha-master-ubuntu-22.04-digitalocean-amd64"
   shortName        = "kubernetes-ubuntu"
   name             = "DO Kubernetes HA Master Cluster on Ubuntu 22.04"
